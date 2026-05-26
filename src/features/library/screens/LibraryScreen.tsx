@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
-import DocumentPicker from 'react-native-document-picker';
+import { pick } from '@react-native-documents/picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ReactNativeBlobUtil from 'react-native-blob-util';
@@ -29,11 +29,10 @@ export function LibraryScreen() {
 
   const handleUpload = async () => {
     try {
-      const result = await DocumentPicker.pick({
-        type: [DocumentPicker.types.allFiles],
+      const [file] = await pick({
+        type: ['application/epub+zip', 'application/pdf'],
       });
 
-      const file = result[0];
       if (!file.name) return;
       const fileType = file.type?.includes('pdf') ? 'pdf' : 'epub';
       const title = file.name.replace(/\.(epub|pdf)$/i, '');
