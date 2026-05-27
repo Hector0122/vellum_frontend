@@ -504,6 +504,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
+  chipTextActive: {
+    color: colors.white,
+  },
   sortBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -533,6 +536,74 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(74,74,233,0.15)',
   },
   sortOptionText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  sortOptionTextActive: {
+    color: colors.white,
+    fontWeight: '600',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  emptyTitle: {
+    color: colors.textSecondary,
+    fontSize: 17,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  list: {
+    gap: 10,
+    paddingBottom: 20,
+  },
+  modalSafe: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  modalContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  profileSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 8,
+  },
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  displayName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  email: {
     fontSize: 14,
     color: colors.textSecondary,
   },

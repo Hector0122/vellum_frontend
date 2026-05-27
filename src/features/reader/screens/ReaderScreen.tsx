@@ -160,9 +160,13 @@ export function ReaderScreen() {
   }, []);
 
   const toggleOverlay = useCallback(() => {
+    if (selected) {
+      setSelected(null);
+      return;
+    }
     setShowOverlay((prev) => !prev);
     if (showHighlights) setShowHighlights(false);
-  }, [showHighlights]);
+  }, [showHighlights, selected]);
 
   const handleSelected = useCallback((cfiRange: string, text: string) => {
     setSelected({ cfiRange, text });
@@ -325,39 +329,39 @@ export function ReaderScreen() {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.panelHandle} />
-            <View style={styles.panelSection}>
-              <View style={styles.fontControls}>
-                <TouchableOpacity style={styles.fontBtn} onPress={trackedDecrease}>
-                  <Text style={styles.fontBtnText}>A−</Text>
-                </TouchableOpacity>
-                <Text style={styles.fontSizeLabel}>{Math.round(fontSize * 100)}%</Text>
-                <TouchableOpacity style={styles.fontBtn} onPress={trackedIncrease}>
-                  <Text style={styles.fontBtnText}>A+</Text>
-                </TouchableOpacity>
-                <View style={styles.divider} />
-                <TouchableOpacity style={styles.fontBtn} onPress={trackedCycleFont}>
-                  <Text style={styles.fontLabelText}>{fontLabel}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.panelSection}>
-              <TouchableOpacity style={styles.bookmarkAddBtn} onPress={handleAddBookmark}>
-                <Text style={styles.bookmarkAddText}>+</Text>
+
+            <View style={styles.fontRow}>
+              <TouchableOpacity style={styles.fontBtn} onPress={trackedDecrease}>
+                <Text style={styles.fontBtnText}>A−</Text>
               </TouchableOpacity>
-              <View style={{ width: 8 }} />
+              <Text style={styles.fontSizeLabel}>{Math.round(fontSize * 100)}%</Text>
+              <TouchableOpacity style={styles.fontBtn} onPress={trackedIncrease}>
+                <Text style={styles.fontBtnText}>A+</Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.fontBtn} onPress={trackedCycleFont}>
+                <Text style={styles.fontLabelText}>{fontLabel}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.actionBtn} onPress={handleAddBookmark}>
+                <Text style={styles.actionBtnIcon}>+</Text>
+                <Text style={styles.actionBtnText}>Save</Text>
+              </TouchableOpacity>
               {toc.length > 0 && (
                 <TouchableOpacity
-                  style={styles.panelBtn}
+                  style={styles.actionBtn}
                   onPress={() => setShowChapters(true)}
                 >
-                  <Text style={styles.panelBtnText}>Chapters</Text>
+                  <Text style={styles.actionBtnText}>Chapters</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={styles.panelBtn}
+                style={styles.actionBtn}
                 onPress={() => setShowBookmarks(true)}
               >
-                <Text style={styles.panelBtnText}>Bookmarks ({bookmarks.length})</Text>
+                <Text style={styles.actionBtnText}>Bookmarks ({bookmarks.length})</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -496,9 +500,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.elevated,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 12,
-    gap: 16,
+    gap: 20,
     elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -511,71 +515,70 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     borderRadius: 2,
     alignSelf: 'center',
+    marginBottom: 4,
   },
-  panelSection: {
+  fontRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  fontControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 6,
   },
   fontBtn: {
     backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 36,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    minWidth: 40,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   fontBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.white,
   },
   fontSizeLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
-    minWidth: 36,
+    minWidth: 42,
     textAlign: 'center',
     fontWeight: '600',
   },
   fontLabelText: {
     fontSize: 12,
     color: colors.white,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   divider: {
     width: 1,
-    height: 20,
+    height: 24,
     backgroundColor: colors.border,
     marginHorizontal: 4,
   },
-  panelBtn: {
-    backgroundColor: colors.accentSoft,
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    paddingVertical: 7,
     borderRadius: 8,
   },
-  panelBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  bookmarkAddBtn: {
-    backgroundColor: colors.accentSoft,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookmarkAddText: {
+  actionBtnIcon: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '500',
     color: colors.accent,
-    lineHeight: 20,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   highlightsPanel: {
     position: 'absolute',
