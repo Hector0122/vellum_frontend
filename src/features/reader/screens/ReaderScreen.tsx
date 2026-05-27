@@ -170,7 +170,7 @@ export function ReaderScreen() {
 
   const handleSelected = useCallback((cfiRange: string, text: string) => {
     setSelected({ cfiRange, text });
-    setShowOverlay(false);
+    setShowOverlay(true);
     setShowHighlights(false);
   }, []);
 
@@ -287,40 +287,12 @@ export function ReaderScreen() {
         onToc={handleToc}
       />
 
-      {/* Color picker — show when text is selected */}
-      {selected && (
-        <Animated.View
-          entering={FadeIn.springify()}
-          exiting={FadeOut}
-          style={[styles.pickerContainer, { bottom: insets.bottom + 16 }]}
-        >
-          <Text style={styles.pickerTitle} numberOfLines={2}>
-            Highlight: &quot;{selected.text}&quot;
-          </Text>
-          <View style={styles.pickerRow}>
-            {HIGHLIGHT_COLORS.map((c) => (
-              <TouchableOpacity
-                key={c.color}
-                style={[styles.colorDot, { backgroundColor: c.color }]}
-                onPress={() => handleCreateHighlight(c.color)}
-                disabled={creatingHighlight}
-              />
-            ))}
-            <TouchableOpacity
-              style={styles.pickerCancel}
-              onPress={() => setSelected(null)}
-            >
-              <Text style={styles.pickerCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
       {showOverlay && ready && (
         <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
-            onPress={() => setShowOverlay(false)}
+            onPress={() => { setShowOverlay(false); setSelected(null); }}
           />
           <Animated.View
             entering={FadeIn.springify()}
@@ -329,6 +301,27 @@ export function ReaderScreen() {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.panelHandle} />
+
+            {selected && (
+              <View style={styles.pickerInline}>
+                <Text style={styles.pickerText} numberOfLines={2}>
+                  &quot;{selected.text}&quot;
+                </Text>
+                <View style={styles.pickerColors}>
+                  {HIGHLIGHT_COLORS.map((c) => (
+                    <TouchableOpacity
+                      key={c.color}
+                      style={[styles.colorDot, { backgroundColor: c.color }]}
+                      onPress={() => handleCreateHighlight(c.color)}
+                      disabled={creatingHighlight}
+                    />
+                  ))}
+                  <TouchableOpacity onPress={() => setSelected(null)}>
+                    <Text style={styles.pickerCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             <View style={styles.fontRow}>
               <TouchableOpacity style={styles.fontBtn} onPress={trackedDecrease}>
@@ -516,6 +509,23 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 4,
+  },
+  pickerInline: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    marginBottom: 8,
+  },
+  pickerText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  pickerColors: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   fontRow: {
     flexDirection: 'row',

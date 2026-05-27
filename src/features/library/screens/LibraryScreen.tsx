@@ -230,6 +230,12 @@ export function LibraryScreen() {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.headerBtn}
+                onPress={() => navigation.navigate('WidgetConfig')}
+              >
+                <Icon name="widget-outline" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerBtn}
                 onPress={() => navigation.navigate('Highlights')}
               >
                 <Icon name="marker" size={24} color={colors.textSecondary} />

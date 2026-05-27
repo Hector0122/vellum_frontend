@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">VellumFrontend</string>
+    <string name="vellum_widget_description">Show your current book, progress, and highlights</string>
 </resources>

@@ -46,6 +46,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   Highlights: undefined;
+  WidgetConfig: undefined;
   Reader: { bookId: string };
 };
 

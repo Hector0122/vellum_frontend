@@ -22,6 +22,7 @@ interface EpubReaderProps {
   onError?: (msg: string) => void;
   onTapped?: () => void;
   onSelected?: (cfiRange: string, text: string) => void;
+  onToc?: (chapters: TocChapter[]) => void;
 }
 
 export interface EpubReaderHandle {
@@ -33,21 +34,6 @@ interface TocChapter {
   label: string;
   href: string;
   depth: number;
-}
-
-interface EpubReaderProps {
-  bookId: string;
-  initialCfi?: string | null;
-  data?: string | null;
-  fontSize?: number;
-  fontFamily?: string;
-  highlights?: { location: string; color: string }[];
-  onProgress?: (percent: number, cfi: string) => void;
-  onReady?: () => void;
-  onError?: (msg: string) => void;
-  onTapped?: () => void;
-  onSelected?: (cfiRange: string, text: string) => void;
-  onToc?: (chapters: TocChapter[]) => void;
 }
 
 export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1, fontFamily = 'system-ui', onProgress, onReady, onError, onTapped, onSelected, onToc }: EpubReaderProps, ref) {
@@ -333,7 +319,7 @@ true;`;
           window.__rendition.on('selected', function(cfiRange, contents){
             try {
               var text = contents.window.getSelection().toString().trim();
-              if (text) {
+              if (text && text.length >= 9) {
                 post('selected', { cfiRange: cfiRange, text: text.substring(0, 500) });
               }
             } catch(e) {
@@ -412,7 +398,18 @@ true;`;
       }
     }), []);
 
-  const composedGesture = useMemo(() => panGesture, [panGesture]);
+  const doubleTapGesture = useMemo(() => Gesture.Tap()
+    .numberOfTaps(2)
+    .runOnJS(true)
+    .onEnd(() => {
+      onTapped?.();
+    }), [onTapped]);
+
+  // Combine pan and double-tap gestures - they should be able to run simultaneously
+  // Pan for page swiping, double-tap for opening overlay
+  const composedGesture = useMemo(() => 
+    Gesture.Simultaneous(panGesture, doubleTapGesture), 
+    [panGesture, doubleTapGesture]);
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     try {
