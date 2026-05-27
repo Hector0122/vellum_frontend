@@ -1,4 +1,5 @@
 import React from 'react';
+import { colors } from '@/shared/theme/colors';
 import {
   View,
   TextInput,
@@ -18,7 +19,7 @@ export function Input({ label, error, style, children: _children, ...props }: In
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
         style={[styles.input, error && styles.inputError, style]}
-        placeholderTextColor="#666680"
+        placeholderTextColor={colors.textMuted}
         {...props}
       />
       {error && <Text style={styles.error}>{error}</Text>}
@@ -31,25 +32,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
   },
   input: {
     height: 52,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     paddingHorizontal: 16,
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   inputError: {
-    borderColor: '#E94560',
+    borderColor: colors.error,
   },
   error: {
-    color: '#E94560',
+    color: colors.error,
     fontSize: 12,
     marginTop: 2,
   },

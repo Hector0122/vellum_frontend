@@ -28,6 +28,7 @@ import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import { AnimatedFAB } from '@/shared/components/AnimatedFAB';
 import { BookCard } from '@/features/library/components/BookCard';
 import type { Book, RootStackParamList } from '@/types';
+import { colors } from '@/shared/theme/colors';
 
 interface UploadResponse {
   uploadUrl: string;
@@ -231,31 +232,31 @@ export function LibraryScreen() {
                 style={styles.headerBtn}
                 onPress={() => navigation.navigate('Highlights')}
               >
-                <Icon name="marker" size={24} color="#B0B0CC" />
+                <Icon name="marker" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.headerBtn}
                 onPress={() => setShowProfile(true)}
               >
-                <Icon name="account-circle-outline" size={24} color="#B0B0CC" />
+                <Icon name="account-circle-outline" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Search */}
           <View style={styles.searchRow}>
-            <Icon name="magnify" size={18} color="#666680" />
+              <Icon name="magnify" size={18} color={colors.textMuted} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search by title or author..."
-              placeholderTextColor="#666680"
+              placeholderTextColor={colors.textMuted}
               value={search}
               onChangeText={setSearch}
               returnKeyType="search"
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
-                <Icon name="close-circle" size={18} color="#666680" />
+                <Icon name="close-circle" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -289,12 +290,12 @@ export function LibraryScreen() {
               style={styles.sortBtn}
               onPress={() => setShowSort(!showSort)}
             >
-              <Icon name="sort-variant" size={18} color="#B0B0CC" />
+              <Icon name="sort-variant" size={18} color={colors.textSecondary} />
               <Text style={styles.sortLabel}>{SORT_LABELS[sort]}</Text>
               <Icon
                 name={showSort ? 'chevron-up' : 'chevron-down'}
                 size={16}
-                color="#666680"
+                color={colors.textMuted}
               />
             </TouchableOpacity>
           </View>
@@ -323,7 +324,7 @@ export function LibraryScreen() {
                     {SORT_LABELS[mode]}
                   </Text>
                   {sort === mode && (
-                    <Icon name="check" size={16} color="#4A4AE9" />
+                    <Icon name="check" size={16} color={colors.accent} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -333,11 +334,11 @@ export function LibraryScreen() {
           {/* Book list */}
           {loading ? (
             <View style={styles.center}>
-              <ActivityIndicator color="#4A4AE9" size="large" />
+              <ActivityIndicator color={colors.accent} size="large" />
             </View>
           ) : filtered.length === 0 ? (
             <View style={styles.center}>
-              <Icon name="bookshelf" size={48} color="#666680" />
+              <Icon name="bookshelf" size={48} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>
                 {books.length === 0 ? 'No books yet' : 'No matches'}
               </Text>
@@ -362,8 +363,8 @@ export function LibraryScreen() {
                 <RefreshControl
                   refreshing={loading}
                   onRefresh={fetchBooks}
-                  tintColor="#4A4AE9"
-                  colors={['#4A4AE9']}
+                  tintColor={colors.accent}
+                  colors={[colors.accent]}
                 />
               }
             />
@@ -374,8 +375,8 @@ export function LibraryScreen() {
         <AnimatedFAB
           icon={uploading ? 'loading' : 'plus'}
           onPress={handleUpload}
-          backgroundColor="#4A4AE9"
-          color="#FFFFFF"
+          backgroundColor={colors.accent}
+          color={colors.white}
         />
 
         {/* Profile Modal */}
@@ -390,13 +391,13 @@ export function LibraryScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Profile</Text>
                 <TouchableOpacity onPress={() => setShowProfile(false)}>
-                  <Icon name="close" size={24} color="#B0B0CC" />
+                  <Icon name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.profileSection}>
                 <View style={styles.avatar}>
-                  <Icon name="account" size={36} color="#4A4AE9" />
+                  <Icon name="account" size={36} color={colors.accent} />
                 </View>
                 <Text style={styles.displayName}>
                   {user?.display_name || user?.email?.split('@')[0]}
@@ -405,7 +406,7 @@ export function LibraryScreen() {
               </View>
 
               <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                <Icon name="logout" size={20} color="#FF6B6B" />
+                <Icon name="logout" size={20} color={colors.destructive} />
                 <Text style={styles.logoutText}>Log out</Text>
               </TouchableOpacity>
             </View>
@@ -419,7 +420,7 @@ export function LibraryScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
   },
   container: {
     flex: 1,
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   headerActions: {
     flexDirection: 'row',
@@ -455,11 +456,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4A4AE9',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 8,
-    shadowColor: '#4A4AE9',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -467,7 +468,7 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 46,
@@ -476,7 +477,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
   },
   toolbar: {
@@ -493,18 +494,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
   },
   chipActive: {
-    backgroundColor: '#4A4AE9',
+    backgroundColor: colors.accent,
   },
   chipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B0B0CC',
-  },
-  chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.textSecondary,
   },
   sortBtn: {
     flexDirection: 'row',
@@ -515,10 +513,10 @@ const styles = StyleSheet.create({
   },
   sortLabel: {
     fontSize: 13,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
   sortDropdown: {
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 4,
     marginBottom: 12,
@@ -536,73 +534,7 @@ const styles = StyleSheet.create({
   },
   sortOptionText: {
     fontSize: 14,
-    color: '#B0B0CC',
-  },
-  sortOptionTextActive: {
-    color: '#4A4AE9',
-    fontWeight: '600',
-  },
-  list: {
-    gap: 10,
-    paddingBottom: 90,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#B0B0CC',
-    textAlign: 'center',
-  },
-  modalSafe: {
-    flex: 1,
-    backgroundColor: '#12121A',
-  },
-  modalContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  profileSection: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    gap: 8,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#1E1E2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  displayName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  email: {
-    fontSize: 14,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -617,6 +549,6 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B6B',
+    color: colors.destructive,
   },
 });

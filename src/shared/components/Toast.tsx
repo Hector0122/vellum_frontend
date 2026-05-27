@@ -2,11 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import ToastMessage, { BaseToastProps } from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { colors } from '@/shared/theme/colors';
 
 const toastConfig = {
   success: ({ text1, text2 }: BaseToastProps) => (
     <View style={[styles.base, styles.success]}>
-      <Icon name="check-circle" size={20} color="#00FF88" />
+      <Icon name="check-circle" size={20} color={colors.success} />
       <View style={styles.textContainer}>
         <Text style={styles.text1} numberOfLines={1}>{text1}</Text>
         {text2 && <Text style={styles.text2} numberOfLines={2}>{text2}</Text>}
@@ -15,7 +16,7 @@ const toastConfig = {
   ),
   error: ({ text1, text2 }: BaseToastProps) => (
     <View style={[styles.base, styles.error]}>
-      <Icon name="alert-circle" size={20} color="#FF6B6B" />
+      <Icon name="alert-circle" size={20} color={colors.destructive} />
       <View style={styles.textContainer}>
         <Text style={styles.text1} numberOfLines={1}>{text1}</Text>
         {text2 && <Text style={styles.text2} numberOfLines={2}>{text2}</Text>}
@@ -24,7 +25,7 @@ const toastConfig = {
   ),
   info: ({ text1, text2 }: BaseToastProps) => (
     <View style={[styles.base, styles.info]}>
-      <Icon name="information" size={20} color="#4A4AE9" />
+      <Icon name="information" size={20} color={colors.accent} />
       <View style={styles.textContainer}>
         <Text style={styles.text1} numberOfLines={1}>{text1}</Text>
         {text2 && <Text style={styles.text2} numberOfLines={2}>{text2}</Text>}
@@ -57,19 +58,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   success: {
-    backgroundColor: '#1A2E1A',
+    backgroundColor: 'rgba(0,255,136,0.08)',
     borderLeftWidth: 3,
-    borderLeftColor: '#00FF88',
+    borderLeftColor: colors.success,
   },
   error: {
-    backgroundColor: '#2E1A1A',
+    backgroundColor: 'rgba(255,107,107,0.08)',
     borderLeftWidth: 3,
-    borderLeftColor: '#FF6B6B',
+    borderLeftColor: colors.destructive,
   },
   info: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: 'rgba(108,99,255,0.08)',
     borderLeftWidth: 3,
-    borderLeftColor: '#4A4AE9',
+    borderLeftColor: colors.accent,
   },
   textContainer: {
     flex: 1,
@@ -78,10 +79,10 @@ const styles = StyleSheet.create({
   text1: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   text2: {
     fontSize: 13,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
 });

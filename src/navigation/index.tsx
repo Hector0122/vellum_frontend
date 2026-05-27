@@ -9,6 +9,7 @@ import { ForgotPasswordScreen } from '@/features/auth/screens/ForgotPasswordScre
 import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { HighlightsScreen } from '@/features/library/screens/HighlightsScreen';
 import { ReaderScreen } from '@/features/reader/screens/ReaderScreen';
+import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList, AuthStackParamList } from '@/types';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -19,7 +20,7 @@ function AuthNavigator() {
     <AuthStack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#12121A' },
+        contentStyle: { backgroundColor: colors.bg },
       }}
     >
       <AuthStack.Screen name="SignIn" component={SignInScreen} />

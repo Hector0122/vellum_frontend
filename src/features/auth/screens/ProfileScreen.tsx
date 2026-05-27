@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { Button } from '@/shared/components/Button';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { colors } from '@/shared/theme/colors';
 
 export function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -35,7 +36,7 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
     paddingHorizontal: 20,
     paddingTop: 60,
     gap: 32,
@@ -48,18 +49,18 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4A4AE9',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   email: {
     fontSize: 16,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
   section: {
     gap: 12,
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666680',
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },

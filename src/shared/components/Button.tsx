@@ -1,4 +1,5 @@
 import React from 'react';
+import { colors } from '@/shared/theme/colors';
 import {
   TouchableOpacity,
   Text,
@@ -34,7 +35,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? '#4A4AE9' : '#FFFFFF'} />
+        <ActivityIndicator color={variant === 'outline' ? colors.accent : colors.white} />
       ) : (
         <Text
           style={[
@@ -58,25 +59,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   primary: {
-    backgroundColor: '#4A4AE9',
+    backgroundColor: colors.accent,
   },
   secondary: {
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.surface,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: '#4A4AE9',
+    borderColor: colors.accent,
   },
   disabled: {
     opacity: 0.5,
   },
   text: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
   textOutline: {
-    color: '#4A4AE9',
+    color: colors.accent,
   },
 });

@@ -5,6 +5,7 @@ import type { WebViewMessageEvent } from 'react-native-webview';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/shared/lib/api';
+import { colors } from '@/shared/theme/colors';
 
 const JSZIP_CDN = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 const EPUB_CDN = 'https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js';
@@ -252,6 +253,13 @@ true;`;
           style.id = '__vellum_font';
           style.textContent = 'body { font-size: ' + (FONT_SIZE * 100) + '% !important; font-family: ' + FONT_FAMILY + ' !important; }';
           doc.head.appendChild(style);
+
+          doc.addEventListener('click', function(e) {
+            var sel = doc.defaultView && doc.defaultView.getSelection();
+            if (!sel || sel.toString().trim() === '') {
+              try { window.parent.ReactNativeWebView.postMessage(JSON.stringify({type: 'tapped'})); } catch(ex) {}
+            }
+          });
         });
 
         var totalChapters = 0;
@@ -440,7 +448,7 @@ true;`;
     <View style={styles.container}>
       {!html && !error && (
         <View style={styles.center}>
-          <ActivityIndicator color="#4A4AE9" size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
           <Text style={styles.stepText}>Preparing reader...</Text>
         </View>
       )}
@@ -474,9 +482,9 @@ true;`;
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#12121A' },
+  container: { flex: 1, backgroundColor: colors.bg },
   webview: { flex: 1, backgroundColor: '#FAFAFA' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  stepText: { color: '#B0B0CC', fontSize: 14 },
-  errorText: { color: '#FF6B6B', fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },
+  stepText: { color: colors.textSecondary, fontSize: 14 },
+  errorText: { color: colors.destructive, fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },
 });

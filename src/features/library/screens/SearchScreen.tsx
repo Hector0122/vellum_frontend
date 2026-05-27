@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '@/shared/theme/colors';
 
 export function SearchScreen() {
   return (
@@ -13,7 +14,7 @@ export function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -21,10 +22,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   subtitle: {
     fontSize: 14,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
 });

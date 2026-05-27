@@ -13,6 +13,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/types';
+import { colors } from '@/shared/theme/colors';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
@@ -90,7 +91,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
   },
   content: {
     flexGrow: 1,
@@ -105,11 +106,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   subtitle: {
     fontSize: 16,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   sentText: {
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,

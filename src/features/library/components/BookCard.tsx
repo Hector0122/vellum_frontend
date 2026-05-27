@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AnimatedListItem } from '@/shared/components/AnimatedListItem';
 import { CachedImage } from '@/shared/components/CachedImage';
 import type { Book } from '@/types';
+import { colors } from '@/shared/theme/colors';
 
 interface BookCardProps {
   item: Book;
@@ -25,7 +26,7 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
           <CachedImage uri={item.cover_url} style={styles.coverImage} />
         ) : (
           <View style={styles.coverPlaceholder}>
-            <Icon name="book-open-variant" size={24} color="#B0B0CC" />
+            <Icon name="book-open-variant" size={24} color={colors.textSecondary} />
           </View>
         )}
         <View style={styles.bookInfo}>
@@ -59,7 +60,7 @@ export const BookCard = React.memo(BookCardInner);
 const styles = StyleSheet.create({
   bookCard: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     gap: 12,
@@ -69,12 +70,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 64,
     borderRadius: 6,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.border,
   },
   coverPlaceholder: {
     width: 48,
     height: 64,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.border,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -86,11 +87,11 @@ const styles = StyleSheet.create({
   bookTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   bookAuthor: {
     fontSize: 13,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
   progressRow: {
     flexDirection: 'row',
@@ -101,19 +102,19 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4A4AE9',
+    backgroundColor: colors.accent,
     borderRadius: 2,
   },
   progressText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     minWidth: 32,
     textAlign: 'right',
   },

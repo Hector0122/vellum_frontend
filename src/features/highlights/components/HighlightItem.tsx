@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import type { Highlight, Note } from '@/types';
+import { colors } from '@/shared/theme/colors';
 
 interface HighlightItemProps {
   item: Highlight;
@@ -99,7 +100,7 @@ function HighlightItemInner({
             <TextInput
               style={styles.noteInput}
               placeholder="Write a note..."
-              placeholderTextColor="#666680"
+              placeholderTextColor={colors.textMuted}
               value={noteText}
               onChangeText={setNoteText}
               multiline
@@ -110,7 +111,7 @@ function HighlightItemInner({
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#FFF" size="small" />
+                <ActivityIndicator color={colors.white} size="small" />
               ) : (
                 <Text style={styles.saveBtnText}>Save</Text>
               )}
@@ -127,7 +128,7 @@ export const HighlightItem = React.memo(HighlightItemInner);
 const styles = StyleSheet.create({
   highlightItem: {
     flexDirection: 'row',
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
     gap: 10,
@@ -148,12 +149,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   noteCount: {
-    color: '#4A4AE9',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '600',
   },
   notesSection: {
-    backgroundColor: '#1A1A28',
+    backgroundColor: colors.elevated,
     borderRadius: 10,
     padding: 12,
     gap: 8,
@@ -167,12 +168,12 @@ const styles = StyleSheet.create({
   },
   noteContent: {
     flex: 1,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   deleteBtn: {
-    color: '#FF6B6B',
+    color: colors.destructive,
     fontSize: 18,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -185,22 +186,22 @@ const styles = StyleSheet.create({
   },
   noteInput: {
     flex: 1,
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     maxHeight: 80,
   },
   saveBtn: {
-    backgroundColor: '#4A4AE9',
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   saveBtnText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
   },

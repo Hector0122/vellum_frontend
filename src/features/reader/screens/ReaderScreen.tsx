@@ -20,16 +20,17 @@ import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
+import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList } from '@/types';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
 
 const HIGHLIGHT_COLORS = [
-  { color: '#FFD700', label: 'Yellow' },
-  { color: '#00FF88', label: 'Green' },
-  { color: '#4A4AE9', label: 'Blue' },
-  { color: '#FF6B9D', label: 'Pink' },
-  { color: '#FFAA00', label: 'Orange' },
+  { color: colors.highlightYellow, label: 'Yellow' },
+  { color: colors.highlightGreen, label: 'Green' },
+  { color: colors.highlightBlue, label: 'Blue' },
+  { color: colors.highlightPink, label: 'Pink' },
+  { color: colors.highlightOrange, label: 'Orange' },
 ];
 
 const FLATLIST_CONFIG = {
@@ -259,7 +260,7 @@ export function ReaderScreen() {
   if (!book) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator color="#4A4AE9" size="large" />
+        <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }
@@ -447,7 +448,7 @@ export function ReaderScreen() {
           <View style={styles.highlightsHeader}>
             <Text style={styles.highlightsTitle}>Highlights</Text>
             <TouchableOpacity onPress={() => { setShowHighlights(false); }}>
-              <Text style={{ color: '#4A4AE9', fontSize: 15, fontWeight: '600' }}>Close</Text>
+              <Text style={{ color: colors.accent, fontSize: 15, fontWeight: '600' }}>Close</Text>
             </TouchableOpacity>
           </View>
           {highlights.length === 0 ? (
@@ -470,7 +471,7 @@ export function ReaderScreen() {
       {/* Loading overlay */}
       {!ready && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator color="#4A4AE9" size="large" />
+        <ActivityIndicator color={colors.accent} size="large" />
           <Text style={styles.loadingText}>Loading reader...</Text>
           {readerError && (
             <Text style={styles.errorText}>{readerError}</Text>
@@ -484,7 +485,7 @@ export function ReaderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
   },
   overlayBackdrop: {
     ...StyleSheet.absoluteFill,
@@ -492,7 +493,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   overlayPanel: {
-    backgroundColor: '#1A1A28',
+    backgroundColor: colors.elevated,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -507,7 +508,7 @@ const styles = StyleSheet.create({
   panelHandle: {
     width: 36,
     height: 4,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.border,
     borderRadius: 2,
     alignSelf: 'center',
   },
@@ -531,28 +532,28 @@ const styles = StyleSheet.create({
   fontBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   fontSizeLabel: {
     fontSize: 12,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     minWidth: 36,
     textAlign: 'center',
     fontWeight: '600',
   },
   fontLabelText: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '700',
   },
   divider: {
     width: 1,
     height: 20,
-    backgroundColor: '#2A2A3E',
+    backgroundColor: colors.border,
     marginHorizontal: 4,
   },
   panelBtn: {
-    backgroundColor: 'rgba(74,74,233,0.2)',
+    backgroundColor: colors.accentSoft,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
@@ -560,10 +561,10 @@ const styles = StyleSheet.create({
   panelBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4A4AE9',
+    color: colors.accent,
   },
   bookmarkAddBtn: {
-    backgroundColor: 'rgba(74,74,233,0.3)',
+    backgroundColor: colors.accentSoft,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -573,7 +574,7 @@ const styles = StyleSheet.create({
   bookmarkAddText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#4A4AE9',
+    color: colors.accent,
     lineHeight: 20,
   },
   highlightsPanel: {
@@ -582,7 +583,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
     paddingHorizontal: 20,
   },
   highlightsHeader: {
@@ -594,10 +595,10 @@ const styles = StyleSheet.create({
   highlightsTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   noHighlights: {
-    color: '#666680',
+    color: colors.textMuted,
     fontSize: 15,
     textAlign: 'center',
     marginTop: 40,
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    backgroundColor: '#1E1E2E',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     gap: 12,
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   pickerTitle: {
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     fontSize: 13,
     fontStyle: 'italic',
   },
@@ -641,7 +642,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   pickerCancelText: {
-    color: '#666680',
+    color: colors.textMuted,
     fontSize: 14,
   },
   loadingOverlay: {
@@ -649,21 +650,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
   },
   loadingText: {
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   errorText: {
-    color: '#FF6B6B',
+    color: colors.destructive,
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: 24,
     marginTop: 8,
   },
   chaptersPanel: {
-    backgroundColor: '#1A1A28',
+    backgroundColor: colors.elevated,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
@@ -679,7 +680,7 @@ const styles = StyleSheet.create({
   chaptersTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   chaptersList: {
     maxHeight: 200,
@@ -687,10 +688,10 @@ const styles = StyleSheet.create({
   chapterItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A3E',
+    borderBottomColor: colors.border,
   },
   chapterLabel: {
     fontSize: 14,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
   },
 });

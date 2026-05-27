@@ -12,6 +12,7 @@ import { analytics } from '@/shared/lib/analytics';
 import { hapticLight } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
 import type { RootStackParamList, Highlight } from '@/types';
+import { colors } from '@/shared/theme/colors';
 
 const FLATLIST_CONFIG = {
   initialNumToRender: 5,
@@ -129,7 +130,7 @@ export function HighlightsScreen() {
     if (!allLoading) return null;
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator color="#4A4AE9" size="small" />
+        <ActivityIndicator color={colors.accent} size="small" />
       </View>
     );
   }, [allLoading]);
@@ -147,7 +148,7 @@ export function HighlightsScreen() {
 
         {hLoading && allHighlights.length === 0 ? (
           <View style={styles.center}>
-            <ActivityIndicator color="#4A4AE9" size="large" />
+            <ActivityIndicator color={colors.accent} size="large" />
           </View>
         ) : allHighlights.length === 0 ? (
           <View style={styles.center}>
@@ -177,7 +178,7 @@ export function HighlightsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#12121A' },
+  safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, paddingHorizontal: 16 },
   header: {
     flexDirection: 'row',
@@ -185,8 +186,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
-  backText: { fontSize: 16, color: '#4A4AE9', fontWeight: '600' },
-  heading: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
+  backText: { fontSize: 16, color: colors.accent, fontWeight: '600' },
+  heading: { fontSize: 22, fontWeight: '700', color: colors.white },
   headerSpacer: { width: 60 },
   list: { gap: 20, paddingBottom: 40 },
   group: { gap: 8 },
@@ -200,13 +201,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
     marginRight: 12,
   },
-  groupCount: { fontSize: 13, color: '#666680' },
+  groupCount: { fontSize: 13, color: colors.textMuted },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: {
-    color: '#666680',
+    color: colors.textMuted,
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 32,

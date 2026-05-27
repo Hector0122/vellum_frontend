@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { colors } from '@/shared/theme/colors';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -21,7 +22,7 @@ interface AnimatedFABProps {
 export function AnimatedFAB({
   onPress,
   icon,
-  color = '#FFFFFF',
+  color = colors.white,
   backgroundColor = '#FF6B35',
 }: AnimatedFABProps) {
   const scale = useSharedValue(0);

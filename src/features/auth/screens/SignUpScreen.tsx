@@ -13,6 +13,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/types';
+import { colors } from '@/shared/theme/colors';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
@@ -88,7 +89,7 @@ export function SignUpScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121A',
+    backgroundColor: colors.bg,
   },
   content: {
     flexGrow: 1,
@@ -103,12 +104,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#4A4AE9',
+    color: colors.accent,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   form: {
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerText: {
-    color: '#B0B0CC',
+    color: colors.textSecondary,
     fontSize: 14,
   },
 });
