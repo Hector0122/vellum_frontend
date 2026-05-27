@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  FlatList, TextInput, Alert,
+  FlatList, Alert,
 } from 'react-native';
-import Animated, { FadeInDown, FadeOutUp, FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -14,7 +14,11 @@ import { useNoteStore } from '@/stores/noteStore';
 import { EpubReader } from '../components/EpubReader';
 import { isEpubCached, getCachedEpubBase64, downloadAndCache } from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
-import type { RootStackParamList, Highlight, Note } from '@/types';
+import { HighlightItem } from '@/features/highlights/components/HighlightItem';
+import { analytics } from '@/shared/lib/analytics';
+import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
+import { showToast } from '@/shared/components/Toast';
+import type { RootStackParamList } from '@/types';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
 
@@ -25,6 +29,13 @@ const HIGHLIGHT_COLORS = [
   { color: '#FF6B9D', label: 'Pink' },
   { color: '#FFAA00', label: 'Orange' },
 ];
+
+const FLATLIST_CONFIG = {
+  initialNumToRender: 8,
+  maxToRenderPerBatch: 10,
+  windowSize: 5,
+  removeClippedSubviews: true,
+};
 
 export function ReaderScreen() {
   const route = useRoute<ReaderRoute>();
@@ -40,11 +51,23 @@ export function ReaderScreen() {
   const [readerError, setReaderError] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ cfiRange: string; text: string } | null>(null);
   const [creatingHighlight, setCreatingHighlight] = useState(false);
-  const [expandedHighlight, setExpandedHighlight] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState('');
-  const [savingNote, setSavingNote] = useState(false);
   const [cachedData, setCachedData] = useState<string | null | undefined>(undefined);
-  const { fontSize, fontFamily, increaseSize, decreaseSize, cycleFont, fontLabel } = useFontPrefs(); // null = no cache, string = ready, undefined = loading
+  const { fontSize, fontFamily, increaseSize, decreaseSize, cycleFont, fontLabel } = useFontPrefs();
+
+  const trackedIncrease = useCallback(() => {
+    increaseSize();
+    analytics.trackEvent('font_changed', { direction: 'increase' });
+  }, [increaseSize]);
+
+  const trackedDecrease = useCallback(() => {
+    decreaseSize();
+    analytics.trackEvent('font_changed', { direction: 'decrease' });
+  }, [decreaseSize]);
+
+  const trackedCycleFont = useCallback(() => {
+    cycleFont();
+    analytics.trackEvent('font_changed', { direction: 'cycle' });
+  }, [cycleFont]);
 
   const book = books.find((b) => b.id === bookId);
 
@@ -73,6 +96,11 @@ export function ReaderScreen() {
       }
     })();
   }, [bookId, fetchHighlights, fetchNotes]);
+
+  useEffect(() => {
+    analytics.trackReaderOpen(bookId);
+    analytics.trackPageView('Reader');
+  }, [bookId]);
 
   const handleProgress = useCallback((percent: number, cfi: string) => {
     if (book && percent >= 0) {
@@ -104,57 +132,64 @@ export function ReaderScreen() {
     setCreatingHighlight(true);
     try {
       await createHighlight(bookId, selected.text, selected.cfiRange, color);
+      await fetchNotes(bookId);
       setSelected(null);
+      hapticSuccess();
+      showToast('success', 'Highlight created');
+      analytics.trackHighlightCreated(bookId, color);
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      showToast('error', 'Error', err.message);
     } finally {
       setCreatingHighlight(false);
     }
-  }, [bookId, selected, createHighlight]);
+  }, [bookId, selected, createHighlight, fetchNotes]);
 
   const handleDeleteHighlight = useCallback((highlightId: string) => {
+    hapticLight();
     Alert.alert('Delete highlight', 'Remove this highlight?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => deleteHighlight(bookId, highlightId),
+        onPress: () => {
+          deleteHighlight(bookId, highlightId);
+          analytics.trackEvent('highlight_deleted', { book_id: bookId });
+        },
       },
     ]);
   }, [bookId, deleteHighlight]);
 
-  const handleSaveNote = useCallback(async () => {
-    const text = noteText.trim();
-    if (!text || !expandedHighlight) return;
-    setSavingNote(true);
-    try {
-      await createNote(bookId, text, expandedHighlight);
-      setNoteText('');
-    } catch (err: any) {
-      Alert.alert('Error', err.message);
-    } finally {
-      setSavingNote(false);
-    }
-  }, [bookId, noteText, expandedHighlight, createNote]);
+  const handleSaveNote = useCallback(async (highlightId: string, text: string) => {
+    await createNote(bookId, text, highlightId);
+    hapticLight();
+    showToast('success', 'Note saved');
+    analytics.trackEvent('note_created', { book_id: bookId });
+  }, [bookId, createNote]);
 
   const handleDeleteNote = useCallback((noteId: string) => {
+    hapticLight();
     Alert.alert('Delete note', 'Remove this note?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => deleteNote(bookId, noteId),
+        onPress: () => {
+          deleteNote(bookId, noteId);
+          analytics.trackEvent('note_deleted', { book_id: bookId });
+        },
       },
     ]);
   }, [bookId, deleteNote]);
 
-  const highlightLocations = highlights.map((h) => ({
-    location: h.location,
-    color: h.color,
-  }));
+  const highlightLocations = useMemo(() =>
+    highlights.map((h) => ({
+      location: h.location,
+      color: h.color,
+    })),
+  [highlights]);
 
   const notesByHighlight = useMemo(() => {
-    const map: Record<string, Note[]> = {};
+    const map: Record<string, any[]> = {};
     for (const n of notes) {
       if (n.highlight_id) {
         if (!map[n.highlight_id]) map[n.highlight_id] = [];
@@ -163,6 +198,21 @@ export function ReaderScreen() {
     }
     return map;
   }, [notes]);
+
+  const renderHighlightItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => (
+      <HighlightItem
+        item={item}
+        index={index}
+        notes={notesByHighlight[item.id] || []}
+        bookId={bookId}
+        onDelete={handleDeleteHighlight}
+        onSaveNote={handleSaveNote}
+        onDeleteNote={handleDeleteNote}
+      />
+    ),
+    [notesByHighlight, bookId, handleDeleteHighlight, handleSaveNote, handleDeleteNote],
+  );
 
   if (!book) {
     return (
@@ -196,7 +246,7 @@ export function ReaderScreen() {
           style={[styles.pickerContainer, { bottom: insets.bottom + 16 }]}
         >
           <Text style={styles.pickerTitle} numberOfLines={2}>
-            Highlight: "{selected.text}"
+            Highlight: &quot;{selected.text}&quot;
           </Text>
           <View style={styles.pickerRow}>
             {HIGHLIGHT_COLORS.map((c) => (
@@ -214,44 +264,46 @@ export function ReaderScreen() {
               <Text style={styles.pickerCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-          </Animated.View>
+        </Animated.View>
       )}
       {showOverlay && ready && (
-        <View style={[styles.overlay, { paddingTop: insets.top + 12 }]}>
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowOverlay(false)}
+          />
+          <Animated.View
+            entering={FadeIn.springify()}
+            exiting={FadeOut}
+            style={[styles.overlayPanel, { paddingBottom: insets.bottom + 16 }]}
+            onStartShouldSetResponder={() => true}
           >
-            <Text style={styles.backText}>{'<'} Back</Text>
-          </TouchableOpacity>
-          <View style={styles.infoRow}>
-            <View style={styles.info}>
-              <Text style={styles.title} numberOfLines={1}>{book.title}</Text>
-              {book.author && (
-                <Text style={styles.author}>{book.author}</Text>
-              )}
+            <View style={styles.panelHandle} />
+            <View style={styles.panelRow}>
+              <View style={styles.fontControls}>
+                <TouchableOpacity style={styles.fontBtn} onPress={trackedDecrease}>
+                  <Text style={styles.fontBtnText}>A−</Text>
+                </TouchableOpacity>
+                <Text style={styles.fontSizeLabel}>{Math.round(fontSize * 100)}%</Text>
+                <TouchableOpacity style={styles.fontBtn} onPress={trackedIncrease}>
+                  <Text style={styles.fontBtnText}>A+</Text>
+                </TouchableOpacity>
+                <View style={styles.divider} />
+                <TouchableOpacity style={styles.fontBtn} onPress={trackedCycleFont}>
+                  <Text style={styles.fontLabelText}>{fontLabel}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={styles.highlightsBtn}
+                onPress={() => setShowHighlights((p) => !p)}
+              >
+                <Text style={styles.highlightsBtnText}>
+                  Notes ({highlights.length})
+                </Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.fontControls}>
-              <TouchableOpacity style={styles.fontBtn} onPress={decreaseSize}>
-                <Text style={styles.fontBtnText}>A-</Text>
-              </TouchableOpacity>
-              <Text style={styles.fontSizeLabel}>{Math.round(fontSize * 100)}%</Text>
-              <TouchableOpacity style={styles.fontBtn} onPress={increaseSize}>
-                <Text style={styles.fontBtnText}>A+</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.fontBtn} onPress={cycleFont}>
-                <Text style={styles.fontLabelText}>{fontLabel}</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={styles.highlightsBtn}
-              onPress={() => setShowHighlights((p) => !p)}
-            >
-              <Text style={styles.highlightsBtnText}>
-                Notes ({highlights.length})
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
       )}
 
@@ -260,8 +312,8 @@ export function ReaderScreen() {
         <View style={[styles.highlightsPanel, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.highlightsHeader}>
             <Text style={styles.highlightsTitle}>Highlights</Text>
-            <TouchableOpacity onPress={() => { setShowHighlights(false); setExpandedHighlight(null); }}>
-              <Text style={styles.backText}>Close</Text>
+            <TouchableOpacity onPress={() => { setShowHighlights(false); }}>
+              <Text style={{ color: '#4A4AE9', fontSize: 15, fontWeight: '600' }}>Close</Text>
             </TouchableOpacity>
           </View>
           {highlights.length === 0 ? (
@@ -270,67 +322,12 @@ export function ReaderScreen() {
             <FlatList
               data={highlights}
               keyExtractor={(h) => h.id}
-              renderItem={({ item, index }: { item: Highlight; index: number }) => {
-                const isExpanded = expandedHighlight === item.id;
-                const hNotes = notesByHighlight[item.id] || [];
-                return (
-                  <Animated.View
-                    entering={FadeInDown.delay(index * 40).springify()}
-                    exiting={FadeOutUp}
-                  >
-                    <TouchableOpacity
-                      style={styles.highlightItem}
-                      onPress={() => setExpandedHighlight(isExpanded ? null : item.id)}
-                      onLongPress={() => handleDeleteHighlight(item.id)}
-                    >
-                      <View style={[styles.highlightBar, { backgroundColor: item.color }]} />
-                      <View style={styles.highlightContent}>
-                        <Text style={styles.highlightText} numberOfLines={isExpanded ? undefined : 3}>
-                          {item.text}
-                        </Text>
-                        {hNotes.length > 0 && !isExpanded && (
-                          <Text style={styles.noteCount}>{hNotes.length} note{hNotes.length > 1 ? 's' : ''}</Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-
-                    {isExpanded && (
-                      <View style={styles.notesSection}>
-                        {hNotes.map((n) => (
-                          <View key={n.id} style={styles.noteItem}>
-                            <Text style={styles.noteContent}>{n.content}</Text>
-                            <TouchableOpacity onPress={() => handleDeleteNote(n.id)}>
-                              <Text style={styles.deleteBtn}>×</Text>
-                            </TouchableOpacity>
-                            </View>
-                        ))}
-                        <View style={styles.noteInputRow}>
-                          <TextInput
-                            style={styles.noteInput}
-                            placeholder="Write a note..."
-                            placeholderTextColor="#666680"
-                            value={noteText}
-                            onChangeText={setNoteText}
-                            multiline
-                          />
-                          <TouchableOpacity
-                            style={styles.saveBtn}
-                            onPress={handleSaveNote}
-                            disabled={savingNote}
-                          >
-                            {savingNote ? (
-                              <ActivityIndicator color="#FFF" size="small" />
-                            ) : (
-                              <Text style={styles.saveBtnText}>Save</Text>
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-                  </Animated.View>
-                );
-              }}
+              renderItem={renderHighlightItem}
               contentContainerStyle={styles.highlightsList}
+              initialNumToRender={FLATLIST_CONFIG.initialNumToRender}
+              maxToRenderPerBatch={FLATLIST_CONFIG.maxToRenderPerBatch}
+              windowSize={FLATLIST_CONFIG.windowSize}
+              removeClippedSubviews={FLATLIST_CONFIG.removeClippedSubviews}
             />
           )}
         </View>
@@ -355,32 +352,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#12121A',
   },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  overlayBackdrop: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'flex-end',
+    zIndex: 10,
+  },
+  overlayPanel: {
+    backgroundColor: '#1A1A28',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: 'rgba(18,18,26,0.95)',
+    paddingTop: 12,
+    gap: 16,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
-  backButton: {
-    marginBottom: 12,
+  panelHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#2A2A3E',
+    borderRadius: 2,
+    alignSelf: 'center',
   },
-  backText: {
-    fontSize: 16,
-    color: '#4A4AE9',
-    fontWeight: '600',
-  },
-  infoRow: {
+  panelRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  info: {
-    flex: 1,
-    gap: 4,
+    gap: 12,
   },
   fontControls: {
     flexDirection: 'row',
@@ -388,42 +389,41 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   fontBtn: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 36,
+    alignItems: 'center',
   },
   fontBtnText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#B0B0CC',
+    color: '#FFFFFF',
   },
   fontSizeLabel: {
-    fontSize: 11,
-    color: '#666680',
-    minWidth: 32,
+    fontSize: 12,
+    color: '#B0B0CC',
+    minWidth: 36,
     textAlign: 'center',
     fontWeight: '600',
   },
   fontLabelText: {
-    fontSize: 11,
-    color: '#B0B0CC',
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 12,
     color: '#FFFFFF',
+    fontWeight: '700',
   },
-  author: {
-    fontSize: 14,
-    color: '#B0B0CC',
+  divider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#2A2A3E',
+    marginHorizontal: 4,
   },
   highlightsBtn: {
-    backgroundColor: 'rgba(74,74,233,0.2)',
+    backgroundColor: 'rgba(74,74,233,0.25)',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   highlightsBtnText: {
     fontSize: 13,
@@ -459,85 +459,6 @@ const styles = StyleSheet.create({
   highlightsList: {
     gap: 10,
     paddingBottom: 40,
-  },
-  highlightItem: {
-    flexDirection: 'row',
-    backgroundColor: '#1E1E2E',
-    borderRadius: 10,
-    padding: 12,
-    gap: 10,
-  },
-  highlightBar: {
-    width: 4,
-    borderRadius: 2,
-    alignSelf: 'stretch',
-  },
-  highlightContent: {
-    flex: 1,
-    gap: 6,
-  },
-  highlightText: {
-    flex: 1,
-    color: '#D0D0E0',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  noteCount: {
-    color: '#4A4AE9',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  notesSection: {
-    backgroundColor: '#1A1A28',
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-    marginTop: 4,
-  },
-  noteItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 4,
-    gap: 8,
-  },
-  noteContent: {
-    flex: 1,
-    color: '#B0B0CC',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  deleteBtn: {
-    color: '#FF6B6B',
-    fontSize: 18,
-    fontWeight: '700',
-    paddingHorizontal: 4,
-  },
-  noteInputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginTop: 4,
-  },
-  noteInput: {
-    flex: 1,
-    backgroundColor: '#1E1E2E',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#FFFFFF',
-    fontSize: 14,
-    maxHeight: 80,
-  },
-  saveBtn: {
-    backgroundColor: '#4A4AE9',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
   },
   pickerContainer: {
     position: 'absolute',

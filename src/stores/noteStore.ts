@@ -4,18 +4,24 @@ import type { Note } from '@/types';
 
 interface NotesResponse {
   notes: Note[];
+  total: number;
 }
 
 interface NoteResponse {
   note: Note;
 }
 
+const PAGE_SIZE = 20;
+
 interface NoteState {
   notes: Note[];
   allNotes: Note[];
   loading: boolean;
+  allLoading: boolean;
+  allPage: number;
+  allHasMore: boolean;
   fetchNotes: (bookId: string) => Promise<void>;
-  fetchAllNotes: () => Promise<void>;
+  fetchAllNotes: (reset?: boolean) => Promise<void>;
   createNote: (bookId: string, content: string, highlightId?: string) => Promise<void>;
   deleteNote: (bookId: string, noteId: string) => Promise<void>;
 }
@@ -24,6 +30,9 @@ export const useNoteStore = create<NoteState>((set, get) => ({
   notes: [],
   allNotes: [],
   loading: false,
+  allLoading: false,
+  allPage: 0,
+  allHasMore: true,
 
   fetchNotes: async (bookId: string) => {
     set({ loading: true });
@@ -35,13 +44,29 @@ export const useNoteStore = create<NoteState>((set, get) => ({
     }
   },
 
-  fetchAllNotes: async () => {
-    set({ loading: true });
+  fetchAllNotes: async (reset = false) => {
+    const { allLoading, allPage, allHasMore } = get();
+    if (allLoading || (!allHasMore && !reset)) return;
+
+    const page = reset ? 0 : allPage;
+    set({ allLoading: true });
+
     try {
-      const data = await api.get<NotesResponse>('/api/notes');
-      set({ allNotes: data.notes, loading: false });
+      const data = await api.get<NotesResponse>(
+        `/api/notes?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`,
+      );
+      const newNotes = reset
+        ? data.notes
+        : [...get().allNotes, ...data.notes];
+
+      set({
+        allNotes: newNotes,
+        allLoading: false,
+        allPage: page + 1,
+        allHasMore: newNotes.length < data.total,
+      });
     } catch {
-      set({ loading: false });
+      set({ allLoading: false });
     }
   },
 
@@ -50,13 +75,18 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       content,
       highlight_id: highlightId || null,
     });
-    set({ notes: [...get().notes, data.note] });
-    set({ allNotes: [...get().allNotes, data.note] });
+    set({
+      notes: [...get().notes, data.note],
+      allNotes: [...get().allNotes, data.note],
+    });
   },
 
   deleteNote: async (bookId: string, noteId: string) => {
     await api.delete(`/api/books/${bookId}/notes/${noteId}`);
-    set({ notes: get().notes.filter((n) => n.id !== noteId) });
-    set({ allNotes: get().allNotes.filter((n) => n.id !== noteId) });
+    const { notes, allNotes } = get();
+    set({
+      notes: notes.filter((n) => n.id !== noteId),
+      allNotes: allNotes.filter((n) => n.id !== noteId),
+    });
   },
 }));

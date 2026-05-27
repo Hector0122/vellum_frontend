@@ -1,8 +1,8 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/shared/lib/api';
 
@@ -31,7 +31,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
 
   useEffect(() => {
     webviewRef.current?.injectJavaScript(
-      `window.__setFont && window.__setFont(${fontSize}, ${JSON.stringify(fontFamily)}); true;`,
+      `window.__setFont ? window.__setFont(${fontSize}, ${JSON.stringify(fontFamily)}) : false; true;`,
     );
   }, [fontSize, fontFamily]);
 
@@ -61,15 +61,26 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
   <script src="${EPUB_CDN}"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%;overflow:hidden}
-    #viewer{width:100%;height:100%}
+    html,body{height:100%;overflow:hidden;background:#FAFAFA}
+    #viewer{width:100%;height:100%;position:relative;will-change:transform,opacity}
+    #viewer.flip-out-fwd{animation:flipOutFwd 0.15s cubic-bezier(0.4,0,0.2,1) forwards}
+    #viewer.flip-in-fwd{animation:flipInFwd 0.25s cubic-bezier(0.2,0.9,0.3,1.1) forwards}
+    #viewer.flip-out-bwd{animation:flipOutBwd 0.15s cubic-bezier(0.4,0,0.2,1) forwards}
+    #viewer.flip-in-bwd{animation:flipInBwd 0.25s cubic-bezier(0.2,0.9,0.3,1.1) forwards}
+    @keyframes flipOutFwd{0%{opacity:1;transform:translateX(0) scale(1)}100%{opacity:0.3;transform:translateX(-12%) scale(0.96)}}
+    @keyframes flipInFwd{0%{opacity:0.4;transform:translateX(14%) scale(0.97)}100%{opacity:1;transform:translateX(0) scale(1)}}
+    @keyframes flipOutBwd{0%{opacity:1;transform:translateX(0) scale(1)}100%{opacity:0.3;transform:translateX(12%) scale(0.96)}}
+    @keyframes flipInBwd{0%{opacity:0.4;transform:translateX(-14%) scale(0.97)}100%{opacity:1;transform:translateX(0) scale(1)}}
     .hidden{display:none!important}
+    .tap-hint{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(0,0,0,0.25);font-family:sans-serif;font-size:12px;z-index:100;animation:fadeHint 4s forwards}
+    @keyframes fadeHint{0%,60%{opacity:1}100%{opacity:0}}
     .loader{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#999;font-family:sans-serif;font-size:14px;z-index:100}
   </style>
 </head>
 <body>
   <p class="loader" id="loader">Loading book...</p>
   <div id="viewer"></div>
+  <p class="tap-hint" id="tapHint">Tap for options</p>
   <script>
     var INITIAL_CFI = ${initialCfi ? JSON.stringify(initialCfi) : 'null'};
     var BOOK_DATA = ${data ? JSON.stringify(data) : 'null'};
@@ -77,6 +88,11 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
     var FONT_FAMILY = ${JSON.stringify(fontFamily)};
     (function(){
       var loader = document.getElementById('loader');
+      var tapHint = document.getElementById('tapHint');
+
+      if (tapHint) {
+        setTimeout(function() { if (tapHint) tapHint.remove(); }, 4000);
+      }
 
       function post(type, payload) {
         var obj = { type: type };
@@ -100,18 +116,87 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
         });
 
         window.__setFont = function(size, family) {
-          var views = window.__rendition.getViews();
-          views.forEach(function(view) {
-            var doc = view.document;
-            if (!doc) return;
-            var style = doc.getElementById('__vellum_font');
-            if (!style) {
-              style = doc.createElement('style');
-              style.id = '__vellum_font';
-              doc.head.appendChild(style);
+          var allIframes = document.querySelectorAll('iframe');
+          for (var i = 0; i < allIframes.length; i++) {
+            try {
+              var doc = allIframes[i].contentDocument || allIframes[i].contentWindow.document;
+              if (!doc) continue;
+              var style = doc.getElementById('__vellum_font');
+              if (!style) {
+                style = doc.createElement('style');
+                style.id = '__vellum_font';
+                doc.head.appendChild(style);
+              }
+              style.textContent = 'body { font-size: ' + (size * 100) + '% !important; font-family: ' + family + ' !important; }';
+            } catch(e) {}
+          }
+        };
+
+        window.__playPageFlipSound = function() {
+          try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            var sampleRate = ctx.sampleRate;
+
+            function makeNoiseBuffer(dur, freq, vol) {
+              var len = sampleRate * dur;
+              var buf = ctx.createBuffer(1, len, sampleRate);
+              var d = buf.getChannelData(0);
+              var pnoise = 0;
+              for (var i = 0; i < len; i++) {
+                var t = i / sampleRate;
+                pnoise += (Math.random() * 2 - 1 - pnoise) * 0.02;
+                var env = Math.exp(-t * 25) - Math.exp(-t * 120);
+                d[i] = pnoise * env * vol;
+              }
+              return buf;
             }
-            style.textContent = 'body { font-size: ' + (size * 100) + '% !important; font-family: ' + family + ' !important; }';
-          });
+
+            // Layer 1: paper rustle (mid-freq filtered noise)
+            var buf1 = makeNoiseBuffer(0.12, 2000, 0.15);
+            var src1 = ctx.createBufferSource();
+            src1.buffer = buf1;
+            var f1 = ctx.createBiquadFilter();
+            f1.type = 'bandpass';
+            f1.frequency.value = 1800;
+            f1.Q.value = 1.5;
+            src1.connect(f1);
+            f1.connect(ctx.destination);
+
+            // Layer 2: soft thump (low freq)
+            var buf2 = ctx.createBuffer(1, sampleRate * 0.04, sampleRate);
+            var d2 = buf2.getChannelData(0);
+            for (var i = 0; i < buf2.length; i++) {
+              var t = i / sampleRate;
+              d2[i] = Math.sin(2 * Math.PI * 120 * t) * Math.exp(-t * 60) * 0.1;
+            }
+            var src2 = ctx.createBufferSource();
+            src2.buffer = buf2;
+            src2.connect(ctx.destination);
+
+            src1.start();
+            src2.start();
+            setTimeout(function() { ctx.close(); }, 200);
+          } catch(e) {}
+        };
+
+        window.__pageFlip = function(direction) {
+          if (!window.__rendition) return;
+          var viewer = document.getElementById('viewer');
+          var outClass = direction > 0 ? 'flip-out-fwd' : 'flip-out-bwd';
+          var inClass = direction > 0 ? 'flip-in-fwd' : 'flip-in-bwd';
+          if (viewer) viewer.className = outClass;
+          setTimeout(function() {
+            window.__playPageFlipSound();
+            var nav = direction > 0 ? window.__rendition.next() : window.__rendition.prev();
+            nav.then(function() {
+              if (viewer) {
+                viewer.className = inClass;
+                setTimeout(function() { if (viewer) viewer.className = ''; }, 300);
+              }
+            }).catch(function() {
+              if (viewer) viewer.className = '';
+            });
+          }, 120);
         };
 
         window.__rendition.hooks.content.register(function(doc) {
@@ -124,7 +209,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
         book.ready.then(function(){
           loader.classList.add('hidden');
           post('ready', { totalChapters: book.spine.length });
-        }, function(e){
+        }).catch(function(e){
           post('error', { msg: 'book.ready failed: ' + (e && e.message || e) });
         });
 
@@ -144,9 +229,13 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
           });
 
           window.__rendition.on('selected', function(cfiRange, contents){
-            var text = contents.window.getSelection().toString().trim();
-            if (text) {
-              post('selected', { cfiRange: cfiRange, text: text.substring(0, 500) });
+            try {
+              var text = contents.window.getSelection().toString().trim();
+              if (text) {
+                post('selected', { cfiRange: cfiRange, text: text.substring(0, 500) });
+              }
+            } catch(e) {
+              post('error', { msg: 'selected handler: ' + (e && e.message || e) });
             }
           });
 
@@ -164,7 +253,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
               } catch(e) {}
             });
           };
-        }, function(e){
+        }).catch(function(e){
           post('error', { msg: 'rendition.display failed: ' + (e && e.message || e) });
         });
       }
@@ -208,17 +297,26 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId]);
 
-  const handleGesture = useCallback((event: any) => {
-    const { translationX, translationY, state } = event.nativeEvent;
-    if (state === GestureState.END) {
-      if (Math.abs(translationX) > 60 && Math.abs(translationX) > Math.abs(translationY)) {
-        const js = translationX > 0
-          ? 'window.__rendition && window.__rendition.prev()'
-          : 'window.__rendition && window.__rendition.next()';
+  const panGesture = useMemo(() => Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-20, 20])
+    .onEnd((event) => {
+      if (Math.abs(event.translationX) > 60) {
+        const js = event.translationX > 0
+          ? 'window.__pageFlip ? window.__pageFlip(-1) : (window.__rendition ? window.__rendition.prev().catch(function(){}) : false); true;'
+          : 'window.__pageFlip ? window.__pageFlip(1) : (window.__rendition ? window.__rendition.next().catch(function(){}) : false); true;';
         webviewRef.current?.injectJavaScript(js);
       }
-    }
-  }, []);
+    }), []);
+
+  const tapGesture = useMemo(() => Gesture.Tap()
+    .runOnJS(true)
+    .onEnd(() => {
+      onTapped?.();
+    }), [onTapped]);
+
+  const composedGesture = useMemo(() => Gesture.Exclusive(panGesture, tapGesture), [panGesture, tapGesture]);
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     try {
@@ -236,7 +334,11 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
         setError(msg.msg || 'Unknown WebView error');
         onError?.(msg.msg || 'Unknown WebView error');
       }
-    } catch {}
+    } catch (e) {
+      if (__DEV__) {
+        console.warn('[EpubReader] Unparseable message:', event.nativeEvent.data);
+      }
+    }
   }, [onProgress, onReady, onError, onTapped, onSelected]);
 
   return (
@@ -253,12 +355,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
         </View>
       )}
       {html && (
-        <PanGestureHandler
-          onGestureEvent={handleGesture}
-          onHandlerStateChange={handleGesture}
-          activeOffsetX={[-20, 20]}
-          failOffsetY={[-20, 20]}
-        >
+        <GestureDetector gesture={composedGesture}>
           <View style={styles.webview}>
             <WebView
               ref={webviewRef}
@@ -275,7 +372,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
               bounces={false}
             />
           </View>
-        </PanGestureHandler>
+        </GestureDetector>
       )}
     </View>
   );

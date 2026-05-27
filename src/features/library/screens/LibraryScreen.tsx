@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Image,
   TextInput,
   Modal,
   RefreshControl,
@@ -22,9 +21,12 @@ import { useLibraryStore } from '@/stores/libraryStore';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/shared/lib/api';
 import { removeCachedEpub } from '@/shared/lib/epubCache';
+import { analytics } from '@/shared/lib/analytics';
+import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
+import { showToast } from '@/shared/components/Toast';
 import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import { AnimatedFAB } from '@/shared/components/AnimatedFAB';
-import { AnimatedListItem } from '@/shared/components/AnimatedListItem';
+import { BookCard } from '@/features/library/components/BookCard';
 import type { Book, RootStackParamList } from '@/types';
 
 interface UploadResponse {
@@ -38,9 +40,16 @@ type SortMode = 'last' | 'az' | 'progress' | 'added';
 
 const SORT_LABELS: Record<SortMode, string> = {
   last: 'Recent',
-  az: 'A — Z',
+  az: 'A \u2014 Z',
   progress: 'Progress',
   added: 'Added',
+};
+
+const FLATLIST_CONFIG = {
+  initialNumToRender: 10,
+  maxToRenderPerBatch: 10,
+  windowSize: 5,
+  removeClippedSubviews: true,
 };
 
 export function LibraryScreen() {
@@ -58,6 +67,7 @@ export function LibraryScreen() {
 
   useEffect(() => {
     fetchBooks();
+    analytics.trackPageView('Library');
   }, [fetchBooks]);
 
   const filtered = useMemo(() => {
@@ -107,7 +117,7 @@ export function LibraryScreen() {
     return result;
   }, [books, search, filter, sort]);
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     try {
       const [file] = await pick({
         type: ['application/epub+zip', 'application/pdf'],
@@ -149,18 +159,24 @@ export function LibraryScreen() {
       }
 
       await fetchBooks();
+      hapticSuccess();
+      showToast('success', 'Book uploaded', `"${title}" added to your library`);
+      analytics.trackEvent('book_upload', { file_type: fileType });
     } catch (err: any) {
-      Alert.alert('Upload failed', err.message);
+      showToast('error', 'Upload failed', err.message);
     } finally {
       setUploading(false);
     }
-  };
+  }, [fetchBooks]);
 
-  const handleBookPress = (book: Book) => {
+  const handleBookPress = useCallback((book: Book) => {
+    hapticLight();
+    analytics.trackBookOpen(book.id, book.title);
     navigation.navigate('Reader', { bookId: book.id });
-  };
+  }, [navigation]);
 
-  const handleDeleteBook = (book: Book) => {
+  const handleDeleteBook = useCallback((book: Book) => {
+    hapticLight();
     Alert.alert('Delete book', `Remove "${book.title}" from your library?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -170,15 +186,17 @@ export function LibraryScreen() {
           try {
             await deleteBook(book.id);
             removeCachedEpub(book.id);
+            showToast('info', 'Book deleted', `"${book.title}" removed`);
+            analytics.trackEvent('book_delete', { book_id: book.id });
           } catch (err: any) {
-            Alert.alert('Error', err.message);
+            showToast('error', 'Error', err.message);
           }
         },
       },
     ]);
-  };
+  }, [deleteBook]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     Alert.alert('Log out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -187,39 +205,18 @@ export function LibraryScreen() {
         onPress: () => signOut(),
       },
     ]);
-  };
+  }, [signOut]);
 
-  const renderBook = ({ item, index }: { item: Book; index: number }) => (
-    <AnimatedListItem index={index}>
-      <TouchableOpacity
-        style={styles.bookCard}
-        onPress={() => handleBookPress(item)}
-        onLongPress={() => handleDeleteBook(item)}
-        activeOpacity={0.7}
-      >
-        {item.cover_url ? (
-          <Image source={{ uri: item.cover_url }} style={styles.coverImage} />
-        ) : (
-          <View style={styles.coverPlaceholder}>
-            <Icon name="book-open-variant" size={24} color="#B0B0CC" />
-          </View>
-        )}
-        <View style={styles.bookInfo}>
-          <Text style={styles.bookTitle} numberOfLines={1}>
-            {item.title}
-          </Text>
-          {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${item.progress_percent}%` },
-              ]}
-            />
-          </View>
-        </View>
-      </TouchableOpacity>
-    </AnimatedListItem>
+  const renderBook = useCallback(
+    ({ item, index }: { item: Book; index: number }) => (
+      <BookCard
+        item={item}
+        index={index}
+        onPress={handleBookPress}
+        onLongPress={handleDeleteBook}
+      />
+    ),
+    [handleBookPress, handleDeleteBook],
   );
 
   return (
@@ -357,6 +354,10 @@ export function LibraryScreen() {
               renderItem={renderBook}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={false}
+              initialNumToRender={FLATLIST_CONFIG.initialNumToRender}
+              maxToRenderPerBatch={FLATLIST_CONFIG.maxToRenderPerBatch}
+              windowSize={FLATLIST_CONFIG.windowSize}
+              removeClippedSubviews={FLATLIST_CONFIG.removeClippedSubviews}
               refreshControl={
                 <RefreshControl
                   refreshing={loading}
@@ -544,53 +545,6 @@ const styles = StyleSheet.create({
   list: {
     gap: 10,
     paddingBottom: 90,
-  },
-  bookCard: {
-    flexDirection: 'row',
-    backgroundColor: '#1E1E2E',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-    alignItems: 'center',
-  },
-  coverImage: {
-    width: 48,
-    height: 64,
-    borderRadius: 6,
-    backgroundColor: '#2A2A3E',
-  },
-  coverPlaceholder: {
-    width: 48,
-    height: 64,
-    backgroundColor: '#2A2A3E',
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  bookTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  bookAuthor: {
-    fontSize: 13,
-    color: '#B0B0CC',
-  },
-  progressBar: {
-    height: 3,
-    backgroundColor: '#2A2A3E',
-    borderRadius: 2,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4A4AE9',
-    borderRadius: 2,
   },
   center: {
     flex: 1,

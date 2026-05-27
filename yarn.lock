@@ -2914,6 +2914,7 @@ __metadata:
     react-native-reanimated: ^4.3.1
     react-native-safe-area-context: ^5.5.2
     react-native-screens: ^4.25.2
+    react-native-toast-message: ^2.3.3
     react-native-vector-icons: ^10.3.0
     react-native-webview: ^13.16.1
     react-native-worklets: ^0.8.0
@@ -7999,6 +8000,16 @@ __metadata:
     react: "*"
     react-native: ">=0.82.0"
   checksum: 075cb46262eba276a7af67e036d6d4eabf8d0964e2abf3efde33dbff3ddcdbe3e69d3b323363152e1e7fe9b36da614faf650c81dbc00e820594ce188d024dbbf
+  languageName: node
+  linkType: hard
+
+"react-native-toast-message@npm:^2.3.3":
+  version: 2.3.3
+  resolution: "react-native-toast-message@npm:2.3.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 313fe6e6b6437b2384d13f8987a141f9aa2df0930a668628276ed5ea990917e7d953dfa1584aa4991326ee9430baab1b735adf0b4a9861e702996617a583cc33
   languageName: node
   linkType: hard
 
