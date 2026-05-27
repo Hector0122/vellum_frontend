@@ -15,12 +15,11 @@ Vellum helps users build a personal digital library with EPUB/PDF support, synce
 Deliver a stable first version where users can:
 
 - create account
-- upload books
-- read EPUB/PDF
-- sync reading progress
+- upload EPUB books
+- read EPUB
+- sync reading progress (CFI)
 - save highlights
 - write notes
-- continue across devices
 
 Fast, reliable, and mobile-first.
 
@@ -38,9 +37,8 @@ Fast, reliable, and mobile-first.
 
 ## Database & auth
 
-- Supabase
-- PostgreSQL
-- Row Level Security
+- Supabase (PostgreSQL)
+- Auth propio (bcrypt + JWT)
 
 ## File storage
 
@@ -62,31 +60,15 @@ Users can:
 
 - Sign up
 - Sign in
-- Reset password
-- Verify email
+- Forgot password
 
-Stored with Supabase Auth.
-
-### Profile
-
-```ts
-User {
-  id
-  email
-  display_name
-  avatar_url
-  created_at
-}
-```
+Auth propio con bcrypt + JWT, perfiles en PostgreSQL (Supabase).
 
 ---
 
 # 📚 Library
 
-Users can upload:
-
-- EPUB
-- PDF
+Users can upload EPUB books.
 
 Each book stores:
 
@@ -101,49 +83,42 @@ Book {
   file_url
   file_type
   progress_percent
+  progress_cfi
   last_opened_at
   created_at
 }
 ```
 
-### Storage
+### Features
 
-Files:
-
-- EPUB
-- PDF
-- Covers
-
-Saved in Cloudflare R2.
-
-Metadata saved in PostgreSQL.
+- Search local by title/author
+- Filters: All / Reading / Unread
+- Sort: Recent, A—Z, Progress, Added
+- Long-press to delete
+- Pull-to-refresh
 
 ---
 
 # 📖 Reader
 
-Core reading experience.
-
 ## EPUB
 
-Use:
-
-- react-native-epubjs
-
-## PDF
-
-Use:
-
-- react-native-pdf
+- epub.js v0.3.93 en WebView
+- JSZip para archivos comprimidos
+- PanGestureHandler para swipe
+- Proxy backend → R2 para descarga
+- CFI persistence (restaura última página)
 
 ## Features
 
-- open instantly
-- resume last page
-- chapter navigation
-- reading progress
-- search text
-- bookmarks
+- Open instantly
+- Resume last page (CFI)
+- Swipe to turn pages (PanGestureHandler + Reanimated)
+- Tap to show/hide overlay
+- Progress tracking
+- Font customization (A-/A+ size, System/Serif/Sans/Mono family)
+- Local EPUB cache for offline reading
+- Animated highlights and color picker (Reanimated)
 
 ---
 
@@ -199,31 +174,32 @@ Use:
 
 # 🔄 Sync
 
-Supabase syncs:
+Backend (Express + Railway) syncs:
 
 - book metadata
-- progress
+- progress (percent + CFI)
 - highlights
 - notes
 
-Cloudflare stores files.
+Cloudflare R2 stores files.
 
 ## Upload flow
 
-```txt
-App → request signed upload URL
-Railway → Cloudflare R2
-Upload file
-Save metadata in Supabase
+```
+App → pick EPUB file
+App → POST /api/upload → presigned R2 URL
+App → PUT file to R2
+App → POST /api/books → save metadata
+Backend → extract cover from EPUB
 ```
 
 ## Read flow
 
-```txt
-App → fetch metadata
-App → signed R2 URL
-Open book
-Save progress
+```
+App → GET /api/books → list metadata
+App → tap book → GET /api/books/:id/file?token= → stream EPUB
+App → epub.js renders in WebView
+App → PATCH /api/books/:id → save progress + CFI
 ```
 
 ---
@@ -252,6 +228,7 @@ cover_url
 file_url
 file_type
 progress_percent
+progress_cfi
 last_opened_at
 created_at
 ```
@@ -283,21 +260,14 @@ created_at
 
 # 🔐 Security
 
-## Supabase
+## Backend
 
-RLS enabled.
+JWT verification en cada endpoint.
+Users only access their own books, highlights, and notes.
 
-Users only access:
+## Cloudflare R2
 
-- their books
-- their notes
-- their highlights
-
-## Cloudflare
-
-Private bucket.
-
-Access with signed URLs.
+Private bucket. Access via backend proxy with signed URLs.
 
 ---
 
@@ -311,60 +281,49 @@ Access with signed URLs.
 
 ## Library
 
-- recent books
-- search
-- uploaded books
-
-## Upload
-
-- choose EPUB/PDF
-- upload progress
+- search bar
+- filter chips (All / Reading / Unread)
+- sort dropdown (Recent, A—Z, Progress, Added)
+- uploaded books list
+- upload button
+- long-press delete
+- pull-to-refresh
 
 ## Reader
 
-- reading view
-- chapter list
-- bookmarks
-- progress
+- reading view (WebView + epub.js)
+- swipe navigation
+- overlay (tap to show/hide back + title)
+- progress tracking
 
-## Highlight modal
+## Profile (modal)
 
-- save highlight
-- add note
-
-## Notes
-
-- list notes
-- edit
-- delete
-
-## Profile
-
+- user info (name, email)
 - logout
-- account settings
+
+## Highlight/Notes (pendiente)
+
+- select text and save highlight
+- add note to highlight
+- list notes
 
 ---
 
 # 🚀 MVP Roadmap
 
-## Phase 1
+## ✅ Phase 1 — Done
 
 - authentication
 - upload books
-- library
-- reader
+- library (search, filters, sort, delete)
+- reader (EPUB, swipe, progress, CFI, font, cache)
+- highlights & notes (create, list, delete, notes per highlight)
+- animations (Reanimated: FAB spring, fade-in items, color picker)
 
-## Phase 2
+## 🔄 Phase 2 — In progress
 
-- highlights
-- notes
-- syncing
-
-## Phase 3
-
-- search
-- recent books
-- UI polish
+- lazy loading & performance optimizations
+- analytics & haptic feedback
 
 ---
 

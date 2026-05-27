@@ -12,7 +12,7 @@ interface InputProps extends TextInputProps {
   error?: string;
 }
 
-export function Input({ label, error, style, ...props }: InputProps) {
+export function Input({ label, error, style, children: _children, ...props }: InputProps) {
   return (
     <View style={styles.wrapper}>
       {label && <Text style={styles.label}>{label}</Text>}

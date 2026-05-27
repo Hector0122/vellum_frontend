@@ -15,7 +15,7 @@ interface LibraryState {
   loading: boolean;
   fetchBooks: () => Promise<void>;
   deleteBook: (bookId: string) => Promise<void>;
-  updateProgress: (bookId: string, progress: number) => Promise<void>;
+  updateProgress: (bookId: string, progress: number, cfi?: string) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -38,16 +38,17 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ books: books.filter((b) => b.id !== bookId) });
   },
 
-  updateProgress: async (bookId: string, progress: number) => {
+  updateProgress: async (bookId: string, progress: number, cfi?: string) => {
     await api.patch<BookResponse>(`/api/books/${bookId}`, {
       progress_percent: progress,
+      progress_cfi: cfi ?? null,
       last_opened_at: new Date().toISOString(),
     });
 
     const { books } = get();
     set({
       books: books.map((b) =>
-        b.id === bookId ? { ...b, progress_percent: progress } : b,
+        b.id === bookId ? { ...b, progress_percent: progress, progress_cfi: cfi } : b,
       ),
     });
   },

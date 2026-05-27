@@ -8,9 +8,11 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
+import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/types';
 
@@ -35,49 +37,71 @@ export function SignInScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+    <AnimatedScreen>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Vellum</Text>
-          <Text style={styles.subtitle}>Welcome back</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View
+            style={styles.header}
+            entering={FadeInDown.delay(100).springify()}
+          >
+            <Text style={styles.title}>Vellum</Text>
+            <Text style={styles.subtitle}>Welcome back</Text>
+          </Animated.View>
 
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="your@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={email}
-            onChangeText={setEmail}
-          />
-          <Input
-            label="Password"
-            placeholder="Your password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          <Button
-            title="Sign In"
-            loading={loading}
-            onPress={handleSignIn}
-          />
-          <Button
-            title="Forgot password?"
-            variant="outline"
-            onPress={() => navigation.navigate('ForgotPassword')}
-          />
-        </View>
+          <Animated.View
+            style={styles.form}
+            entering={FadeInUp.delay(200).springify()}
+          >
+            <Input
+              label="Email"
+              placeholder="your@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={email}
+              onChangeText={setEmail}
+            />
+            <Input
+              label="Password"
+              placeholder="Your password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Button
+              title="Sign In"
+              loading={loading}
+              onPress={handleSignIn}
+            />
+            <Button
+              title="Forgot password?"
+              variant="outline"
+              onPress={() => navigation.navigate('ForgotPassword')}
+            />
+          </Animated.View>
 
-        <View style={styles.footer}>
+          <Animated.View
+            style={styles.footer}
+            entering={FadeInUp.delay(300).springify()}
+          >
+            <Text style={styles.footerText}>Don't have an account?</Text>
+            <Button
+              title="Sign Up"
+              variant="secondary"
+              onPress={() => navigation.navigate('SignUp')}
+            />
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AnimatedScreen>
+  );
+}
           <Text style={styles.footerText}>Don't have an account?</Text>
           <Button
             title="Sign Up"
