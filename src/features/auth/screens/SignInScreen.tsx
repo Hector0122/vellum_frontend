@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   KeyboardAvoidingView,
@@ -74,11 +73,7 @@ export function SignInScreen({ navigation }: Props) {
               value={password}
               onChangeText={setPassword}
             />
-            <Button
-              title="Sign In"
-              loading={loading}
-              onPress={handleSignIn}
-            />
+            <Button title="Sign In" loading={loading} onPress={handleSignIn} />
             <Button
               title="Forgot password?"
               variant="outline"
@@ -100,17 +95,6 @@ export function SignInScreen({ navigation }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
     </AnimatedScreen>
-  );
-}
-          <Text style={styles.footerText}>Don't have an account?</Text>
-          <Button
-            title="Sign Up"
-            variant="secondary"
-            onPress={() => navigation.navigate('SignUp')}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
   );
 }
 

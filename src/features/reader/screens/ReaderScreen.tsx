@@ -240,7 +240,7 @@ export function ReaderScreen() {
                 <Text style={styles.fontBtnText}>A+</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.fontBtn} onPress={cycleFont}>
-                <Text style={[styles.fontBtnText, { fontSize: 11 }]}>{fontLabel}</Text>
+                <Text style={styles.fontLabelText}>{fontLabel}</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -404,6 +404,11 @@ const styles = StyleSheet.create({
     minWidth: 32,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  fontLabelText: {
+    fontSize: 11,
+    color: '#B0B0CC',
+    fontWeight: '700',
   },
   title: {
     fontSize: 20,

@@ -32,7 +32,7 @@ export async function downloadAndCache(bookId: string): Promise<string> {
 
   await ReactNativeBlobUtil.fs.mkdir(CACHE_DIR);
 
-  const res = await ReactNativeBlobUtil.config({
+  await ReactNativeBlobUtil.config({
     path: cachePath(bookId),
   }).fetch('GET', url, {
     Authorization: `Bearer ${token}`,

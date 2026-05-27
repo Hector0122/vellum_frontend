@@ -353,3 +353,8 @@ A place to:
 Simple first.
 
 Powerful over time.
+
+
+
+
+adb install -r app/build/outputs/apk/release/app-release.apk

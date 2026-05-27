@@ -182,7 +182,7 @@ export function HighlightsScreen() {
             <Text style={styles.backText}>{'<'} Library</Text>
           </TouchableOpacity>
           <Text style={styles.heading}>Highlights</Text>
-          <View style={{ width: 60 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         {hLoading ? (
@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontSize: 16, color: '#4A4AE9', fontWeight: '600' },
   heading: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
+  headerSpacer: { width: 60 },
   list: { gap: 20, paddingBottom: 40 },
   group: { gap: 8 },
   groupHeader: {

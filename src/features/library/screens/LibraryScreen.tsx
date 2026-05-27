@@ -1,11 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, Alert,
-  ActivityIndicator, Image, TextInput, Modal, RefreshControl,
-  Animated,
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Image,
+  TextInput,
+  Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInRight } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { pick } from '@react-native-documents/picker';
 import { useNavigation } from '@react-navigation/native';
@@ -13,7 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useAuthStore } from '@/stores/authStore';
-import { api, getToken } from '@/shared/lib/api';
+import { api } from '@/shared/lib/api';
 import { removeCachedEpub } from '@/shared/lib/epubCache';
 import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import { AnimatedFAB } from '@/shared/components/AnimatedFAB';
@@ -37,7 +44,8 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 export function LibraryScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { books, loading, fetchBooks, deleteBook } = useLibraryStore();
   const { user, signOut } = useAuthStore();
 
@@ -58,16 +66,18 @@ export function LibraryScreen() {
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
-        (b) =>
+        b =>
           b.title.toLowerCase().includes(q) ||
           (b.author && b.author.toLowerCase().includes(q)),
       );
     }
 
     if (filter === 'reading') {
-      result = result.filter((b) => b.progress_percent > 0 && b.progress_percent < 100);
+      result = result.filter(
+        b => b.progress_percent > 0 && b.progress_percent < 100,
+      );
     } else if (filter === 'unread') {
-      result = result.filter((b) => b.progress_percent === 0);
+      result = result.filter(b => b.progress_percent === 0);
     }
 
     switch (sort) {
@@ -109,12 +119,13 @@ export function LibraryScreen() {
 
       setUploading(true);
 
-      const { uploadUrl, publicUrl } = await api.post<UploadResponse>('/api/upload', {
-        fileName: file.name,
-        fileType,
-      });
-
-      const token = await getToken();
+      const { uploadUrl, publicUrl } = await api.post<UploadResponse>(
+        '/api/upload',
+        {
+          fileName: file.name,
+          fileType,
+        },
+      );
 
       await ReactNativeBlobUtil.fetch(
         'PUT',
@@ -150,25 +161,21 @@ export function LibraryScreen() {
   };
 
   const handleDeleteBook = (book: Book) => {
-    Alert.alert(
-      'Delete book',
-      `Remove "${book.title}" from your library?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteBook(book.id);
-              removeCachedEpub(book.id);
-            } catch (err: any) {
-              Alert.alert('Error', err.message);
-            }
-          },
+    Alert.alert('Delete book', `Remove "${book.title}" from your library?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteBook(book.id);
+            removeCachedEpub(book.id);
+          } catch (err: any) {
+            Alert.alert('Error', err.message);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleLogout = () => {
@@ -201,12 +208,13 @@ export function LibraryScreen() {
           <Text style={styles.bookTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          {item.author && (
-            <Text style={styles.bookAuthor}>{item.author}</Text>
-          )}
+          {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
           <View style={styles.progressBar}>
             <View
-              style={[styles.progressFill, { width: `${item.progress_percent}%` }]}
+              style={[
+                styles.progressFill,
+                { width: `${item.progress_percent}%` },
+              ]}
             />
           </View>
         </View>
@@ -218,182 +226,191 @@ export function LibraryScreen() {
     <AnimatedScreen>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.heading}>Library</Text>
-          <View style={styles.headerActions}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.heading}>Library</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerBtn}
+                onPress={() => navigation.navigate('Highlights')}
+              >
+                <Icon name="marker" size={24} color="#B0B0CC" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerBtn}
+                onPress={() => setShowProfile(true)}
+              >
+                <Icon name="account-circle-outline" size={24} color="#B0B0CC" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Search */}
+          <View style={styles.searchRow}>
+            <Icon name="magnify" size={18} color="#666680" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by title or author..."
+              placeholderTextColor="#666680"
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Icon name="close-circle" size={18} color="#666680" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Filters + Sort */}
+          <View style={styles.toolbar}>
+            <View style={styles.filterRow}>
+              {(['all', 'reading', 'unread'] as FilterMode[]).map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.chip, filter === f && styles.chipActive]}
+                  onPress={() => setFilter(f)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      filter === f && styles.chipTextActive,
+                    ]}
+                  >
+                    {f === 'all'
+                      ? 'All'
+                      : f === 'reading'
+                      ? 'Reading'
+                      : 'Unread'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => navigation.navigate('Highlights')}
+              style={styles.sortBtn}
+              onPress={() => setShowSort(!showSort)}
             >
-              <Icon name="marker" size={24} color="#B0B0CC" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => setShowProfile(true)}
-            >
-              <Icon name="account-circle-outline" size={24} color="#B0B0CC" />
+              <Icon name="sort-variant" size={18} color="#B0B0CC" />
+              <Text style={styles.sortLabel}>{SORT_LABELS[sort]}</Text>
+              <Icon
+                name={showSort ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color="#666680"
+              />
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Search */}
-        <View style={styles.searchRow}>
-          <Icon name="magnify" size={18} color="#666680" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by title or author..."
-            placeholderTextColor="#666680"
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Icon name="close-circle" size={18} color="#666680" />
-            </TouchableOpacity>
+          {/* Sort dropdown */}
+          {showSort && (
+            <View style={styles.sortDropdown}>
+              {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.sortOption,
+                    sort === mode && styles.sortOptionActive,
+                  ]}
+                  onPress={() => {
+                    setSort(mode);
+                    setShowSort(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.sortOptionText,
+                      sort === mode && styles.sortOptionTextActive,
+                    ]}
+                  >
+                    {SORT_LABELS[mode]}
+                  </Text>
+                  {sort === mode && (
+                    <Icon name="check" size={16} color="#4A4AE9" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Book list */}
+          {loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color="#4A4AE9" size="large" />
+            </View>
+          ) : filtered.length === 0 ? (
+            <View style={styles.center}>
+              <Icon name="bookshelf" size={48} color="#666680" />
+              <Text style={styles.emptyTitle}>
+                {books.length === 0 ? 'No books yet' : 'No matches'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {books.length === 0
+                  ? 'Tap + to upload an EPUB'
+                  : 'Try a different search or filter'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filtered}
+              keyExtractor={item => item.id}
+              renderItem={renderBook}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={fetchBooks}
+                  tintColor="#4A4AE9"
+                  colors={['#4A4AE9']}
+                />
+              }
+            />
           )}
         </View>
 
-        {/* Filters + Sort */}
-        <View style={styles.toolbar}>
-          <View style={styles.filterRow}>
-            {(['all', 'reading', 'unread'] as FilterMode[]).map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.chip, filter === f && styles.chipActive]}
-                onPress={() => setFilter(f)}
-              >
-                <Text style={[styles.chipText, filter === f && styles.chipTextActive]}>
-                  {f === 'all' ? 'All' : f === 'reading' ? 'Reading' : 'Unread'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        {/* FAB */}
+        <AnimatedFAB
+          icon={uploading ? 'loading' : 'plus'}
+          onPress={handleUpload}
+          backgroundColor="#4A4AE9"
+          color="#FFFFFF"
+        />
 
-          <TouchableOpacity
-            style={styles.sortBtn}
-            onPress={() => setShowSort(!showSort)}
-          >
-            <Icon name="sort-variant" size={18} color="#B0B0CC" />
-            <Text style={styles.sortLabel}>{SORT_LABELS[sort]}</Text>
-            <Icon
-              name={showSort ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color="#666680"
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Sort dropdown */}
-        {showSort && (
-          <View style={styles.sortDropdown}>
-            {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                style={[styles.sortOption, sort === mode && styles.sortOptionActive]}
-                onPress={() => {
-                  setSort(mode);
-                  setShowSort(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sortOptionText,
-                    sort === mode && styles.sortOptionTextActive,
-                  ]}
-                >
-                  {SORT_LABELS[mode]}
-                </Text>
-                {sort === mode && (
-                  <Icon name="check" size={16} color="#4A4AE9" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Book list */}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#4A4AE9" size="large" />
-          </View>
-        ) : filtered.length === 0 ? (
-          <View style={styles.center}>
-            <Icon name="bookshelf" size={48} color="#666680" />
-            <Text style={styles.emptyTitle}>
-              {books.length === 0 ? 'No books yet' : 'No matches'}
-            </Text>
-            <Text style={styles.emptyText}>
-              {books.length === 0
-                ? 'Tap + to upload an EPUB'
-                : 'Try a different search or filter'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            renderItem={renderBook}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={loading}
-                onRefresh={fetchBooks}
-                tintColor="#4A4AE9"
-                colors={['#4A4AE9']}
-              />
-            }
-          />
-        )}
-      </View>
-
-      {/* FAB */}
-      <AnimatedFAB
-        icon={uploading ? 'loading' : 'plus'}
-        onPress={handleUpload}
-        backgroundColor="#4A4AE9"
-        color="#FFFFFF"
-      />
-
-      {/* Profile Modal */}
-      <Modal
-        visible={showProfile}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowProfile(false)}
-      >
-        <SafeAreaView style={styles.modalSafe} edges={['bottom']}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Profile</Text>
-              <TouchableOpacity onPress={() => setShowProfile(false)}>
-                <Icon name="close" size={24} color="#B0B0CC" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.profileSection}>
-              <View style={styles.avatar}>
-                <Icon name="account" size={36} color="#4A4AE9" />
+        {/* Profile Modal */}
+        <Modal
+          visible={showProfile}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowProfile(false)}
+        >
+          <SafeAreaView style={styles.modalSafe} edges={['bottom']}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Profile</Text>
+                <TouchableOpacity onPress={() => setShowProfile(false)}>
+                  <Icon name="close" size={24} color="#B0B0CC" />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.displayName}>
-                {user?.display_name || user?.email?.split('@')[0]}
-              </Text>
-              <Text style={styles.email}>{user?.email}</Text>
-            </View>
 
-            <TouchableOpacity
-              style={styles.logoutBtn}
-              onPress={handleLogout}
-            >
-              <Icon name="logout" size={20} color="#FF6B6B" />
-              <Text style={styles.logoutText}>Log out</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+              <View style={styles.profileSection}>
+                <View style={styles.avatar}>
+                  <Icon name="account" size={36} color="#4A4AE9" />
+                </View>
+                <Text style={styles.displayName}>
+                  {user?.display_name || user?.email?.split('@')[0]}
+                </Text>
+                <Text style={styles.email}>{user?.email}</Text>
+              </View>
+
+              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                <Icon name="logout" size={20} color="#FF6B6B" />
+                <Text style={styles.logoutText}>Log out</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
     </AnimatedScreen>
   );
 }

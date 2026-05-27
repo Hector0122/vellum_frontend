@@ -1,10 +1,7 @@
 import React from 'react';
-import { View } from 'react-native';
 import Animated, {
   FadeInUp,
   FadeOutDown,
-  FadeInDown,
-  FadeOutUp,
   FadeIn,
   FadeOut,
 } from 'react-native-reanimated';
@@ -16,6 +13,8 @@ interface AnimatedScreenProps {
   style?: any;
 }
 
+const flexOne = { flex: 1 } as const;
+
 /**
  * Screen wrapper con fade-in animado por defecto
  */
@@ -26,7 +25,7 @@ export function AnimatedScreen({
   style,
 }: AnimatedScreenProps) {
   return (
-    <Animated.View entering={entering} exiting={exiting} style={[{ flex: 1 }, style]}>
+    <Animated.View entering={entering} exiting={exiting} style={[flexOne, style]}>
       {children}
     </Animated.View>
   );

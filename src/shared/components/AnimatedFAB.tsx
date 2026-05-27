@@ -34,6 +34,7 @@ export function AnimatedFAB({
       mass: 1,
       overshootClamping: false,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Press animation

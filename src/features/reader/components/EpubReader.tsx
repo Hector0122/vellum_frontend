@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import { PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
-import type { PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/shared/lib/api';
 
@@ -14,7 +13,7 @@ interface EpubReaderProps {
   bookId: string;
   initialCfi?: string | null;
   data?: string | null;
-  highlights?: string[];
+  highlights?: { location: string; color: string }[];
   fontSize?: number;
   fontFamily?: string;
   onProgress?: (percent: number, cfi: string) => void;
@@ -206,9 +205,10 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
     })();
 
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId]);
 
-  const handleGesture = useCallback((event: { nativeEvent: PanGestureHandlerEventPayload }) => {
+  const handleGesture = useCallback((event: any) => {
     const { translationX, translationY, state } = event.nativeEvent;
     if (state === GestureState.END) {
       if (Math.abs(translationX) > 60 && Math.abs(translationX) > Math.abs(translationY)) {
@@ -222,19 +222,19 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'ready' && !readyRef.current) {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'ready' && !readyRef.current) {
         readyRef.current = true;
         onReady?.();
-      } else if (data.type === 'location') {
-        onProgress?.(Math.round(data.percentage), data.cfi || '');
-      } else if (data.type === 'tapped') {
+      } else if (msg.type === 'location') {
+        onProgress?.(Math.round(msg.percentage), msg.cfi || '');
+      } else if (msg.type === 'tapped') {
         onTapped?.();
-      } else if (data.type === 'selected') {
-        onSelected?.(data.cfiRange, data.text);
-      } else if (data.type === 'error') {
-        setError(data.msg || 'Unknown WebView error');
-        onError?.(data.msg || 'Unknown WebView error');
+      } else if (msg.type === 'selected') {
+        onSelected?.(msg.cfiRange, msg.text);
+      } else if (msg.type === 'error') {
+        setError(msg.msg || 'Unknown WebView error');
+        onError?.(msg.msg || 'Unknown WebView error');
       }
     } catch {}
   }, [onProgress, onReady, onError, onTapped, onSelected]);
