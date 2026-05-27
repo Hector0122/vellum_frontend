@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useCallback, useEffect, useState, useMemo, useImperativeHandle } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
@@ -23,11 +23,59 @@ interface EpubReaderProps {
   onSelected?: (cfiRange: string, text: string) => void;
 }
 
-export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1, fontFamily = 'system-ui', onProgress, onReady, onError, onTapped, onSelected }: EpubReaderProps) {
+export interface EpubReaderHandle {
+  goToChapter: (href: string) => void;
+  goToCfi: (cfi: string) => void;
+}
+
+interface TocChapter {
+  label: string;
+  href: string;
+  depth: number;
+}
+
+interface EpubReaderProps {
+  bookId: string;
+  initialCfi?: string | null;
+  data?: string | null;
+  fontSize?: number;
+  fontFamily?: string;
+  highlights?: { location: string; color: string }[];
+  onProgress?: (percent: number, cfi: string) => void;
+  onReady?: () => void;
+  onError?: (msg: string) => void;
+  onTapped?: () => void;
+  onSelected?: (cfiRange: string, text: string) => void;
+  onToc?: (chapters: TocChapter[]) => void;
+}
+
+export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1, fontFamily = 'system-ui', onProgress, onReady, onError, onTapped, onSelected, onToc }: EpubReaderProps, ref) {
   const webviewRef = useRef<WebView>(null);
   const readyRef = useRef(false);
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    goToChapter: (href: string) => {
+      const js = `
+try {
+  if (typeof window.__goToChapter === 'function') {
+    window.__goToChapter(${JSON.stringify(href)});
+  } else {
+    window.ReactNativeWebView.postMessage(JSON.stringify({type:'debug',msg:'__goToChapter not defined'}));
+  }
+} catch(e) {
+  window.ReactNativeWebView.postMessage(JSON.stringify({type:'debug',msg:'goToChapter error: '+e.message}));
+}
+true;`;
+      webviewRef.current?.injectJavaScript(js);
+    },
+    goToCfi: (cfi: string) => {
+      webviewRef.current?.injectJavaScript(
+        `window.__rendition && window.__rendition.display(${JSON.stringify(cfi)}); true;`,
+      );
+    },
+  }));
 
   useEffect(() => {
     webviewRef.current?.injectJavaScript(
@@ -206,19 +254,65 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
           doc.head.appendChild(style);
         });
 
+        var totalChapters = 0;
+
+        function extractToc(items, depth) {
+          if (depth === undefined) depth = 0;
+          var result = [];
+          for (var i = 0; i < items.length; i++) {
+            var label = items[i].label || '';
+            label = label.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+            if (!label) label = 'Chapter';
+            result.push({ label: label, href: items[i].href, depth: depth });
+            if (items[i].subitems && items[i].subitems.length) {
+              result = result.concat(extractToc(items[i].subitems, depth + 1));
+            }
+          }
+          return result;
+        }
+
         book.ready.then(function(){
+          totalChapters = book.spine.length;
           loader.classList.add('hidden');
-          post('ready', { totalChapters: book.spine.length });
+          post('ready', { totalChapters: totalChapters });
+            try {
+              var toc = book.navigation && book.navigation.toc;
+              if (toc && toc.length) {
+                var flat = extractToc(toc);
+                console.log('[TOC] extracted:', JSON.stringify(flat).slice(0, 500));
+                post('toc', { chapters: flat });
+              }
+            } catch(e) {}
         }).catch(function(e){
           post('error', { msg: 'book.ready failed: ' + (e && e.message || e) });
         });
 
+        window.__goToChapter = function(href) {
+          if (window.__rendition && window.__rendition.book) {
+            var spine = window.__rendition.book.spine;
+            var len = spine.length;
+            for (var i = 0; i < len; i++) {
+              var item = spine.get ? spine.get(i) : spine[i];
+              if (!item) continue;
+              var sHref = item.href;
+              if (sHref === href || sHref.endsWith(href) || href.endsWith(sHref)) {
+                window.__rendition.display(i);
+                return;
+              }
+            }
+            post('debug', { msg: 'goToChapter: no match for ' + href });
+          }
+        };
+
         window.__rendition.display(INITIAL_CFI || undefined).then(function(){
           window.__rendition.on('relocated', function(location){
             if (location && location.start) {
+              var overallPct = totalChapters > 0
+                ? (location.start.index + location.start.percentage) / totalChapters
+                : 0;
               post('location', {
                 index: location.start.index,
-                percentage: location.start.percentage,
+                percentage: overallPct,
                 cfi: location.start.cfi,
               });
             }
@@ -310,13 +404,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
       }
     }), []);
 
-  const tapGesture = useMemo(() => Gesture.Tap()
-    .runOnJS(true)
-    .onEnd(() => {
-      onTapped?.();
-    }), [onTapped]);
-
-  const composedGesture = useMemo(() => Gesture.Exclusive(panGesture, tapGesture), [panGesture, tapGesture]);
+  const composedGesture = useMemo(() => panGesture, [panGesture]);
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     try {
@@ -325,9 +413,16 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
         readyRef.current = true;
         onReady?.();
       } else if (msg.type === 'location') {
-        onProgress?.(Math.round(msg.percentage), msg.cfi || '');
+        if (__DEV__) console.log('[EpubReader] location msg:', msg.percentage, msg.cfi);
+        const pct = Math.round(msg.percentage * 100);
+        onProgress?.(pct, msg.cfi || '');
       } else if (msg.type === 'tapped') {
         onTapped?.();
+      } else if (msg.type === 'toc') {
+        if (__DEV__) console.log('[EpubReader] toc:', msg.chapters?.length, 'chapters');
+        onToc?.(msg.chapters);
+      } else if (msg.type === 'debug') {
+        if (__DEV__) console.log('[WebView]', msg.msg);
       } else if (msg.type === 'selected') {
         onSelected?.(msg.cfiRange, msg.text);
       } else if (msg.type === 'error') {
@@ -339,7 +434,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
         console.warn('[EpubReader] Unparseable message:', event.nativeEvent.data);
       }
     }
-  }, [onProgress, onReady, onError, onTapped, onSelected]);
+  }, [onProgress, onReady, onError, onTapped, onSelected, onToc]);
 
   return (
     <View style={styles.container}>
@@ -376,7 +471,7 @@ export function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1,
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#12121A' },

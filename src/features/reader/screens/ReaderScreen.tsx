@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  FlatList, Alert,
+  FlatList, Alert, Pressable,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useHighlightStore } from '@/stores/highlightStore';
 import { useNoteStore } from '@/stores/noteStore';
+import { useBookmarkStore } from '@/stores/bookmarkStore';
 import { EpubReader } from '../components/EpubReader';
+import type { EpubReaderHandle } from '../components/EpubReader';
 import { isEpubCached, getCachedEpubBase64, downloadAndCache } from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
@@ -52,7 +54,13 @@ export function ReaderScreen() {
   const [selected, setSelected] = useState<{ cfiRange: string; text: string } | null>(null);
   const [creatingHighlight, setCreatingHighlight] = useState(false);
   const [cachedData, setCachedData] = useState<string | null | undefined>(undefined);
+  const [toc, setToc] = useState<{ label: string; href: string; depth: number }[]>([]);
+  const [showChapters, setShowChapters] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const epubRef = useRef<EpubReaderHandle>(null);
+  const currentCfiRef = useRef('');
   const { fontSize, fontFamily, increaseSize, decreaseSize, cycleFont, fontLabel } = useFontPrefs();
+  const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } = useBookmarkStore();
 
   const trackedIncrease = useCallback(() => {
     increaseSize();
@@ -103,6 +111,8 @@ export function ReaderScreen() {
   }, [bookId]);
 
   const handleProgress = useCallback((percent: number, cfi: string) => {
+    if (__DEV__) console.log('[ReaderScreen] handleProgress:', percent, cfi);
+    currentCfiRef.current = cfi;
     if (book && percent >= 0) {
       updateProgress(book.id, percent, cfi || undefined);
     }
@@ -110,10 +120,42 @@ export function ReaderScreen() {
 
   const handleReady = useCallback(() => {
     setReady(true);
-  }, []);
+    fetchBookmarks(bookId);
+  }, [fetchBookmarks, bookId]);
 
   const handleReaderError = useCallback((msg: string) => {
     setReaderError(msg);
+  }, []);
+
+  const handleToc = useCallback((chapters: { label: string; href: string; depth: number }[]) => {
+    if (__DEV__) console.log('[ReaderScreen] TOC received:', chapters.length);
+    setToc(chapters);
+  }, []);
+
+  const handleAddBookmark = useCallback(async () => {
+    if (!book) return;
+    const cfi = currentCfiRef.current;
+    if (!cfi) return;
+    try {
+      await addBookmark(book.id, cfi);
+      hapticSuccess();
+      showToast('success', 'Bookmark added');
+    } catch {
+      showToast('error', 'Failed to add bookmark');
+    }
+  }, [book, addBookmark]);
+
+  const handleGoToCfi = useCallback((cfi: string) => {
+    epubRef.current?.goToCfi(cfi);
+    setShowOverlay(false);
+    setShowBookmarks(false);
+  }, []);
+
+  const handleGoToChapter = useCallback((href: string) => {
+    if (__DEV__) console.log('[ReaderScreen] handleGoToChapter:', href, 'ref:', !!epubRef.current);
+    epubRef.current?.goToChapter(href);
+    setShowOverlay(false);
+    setShowChapters(false);
   }, []);
 
   const toggleOverlay = useCallback(() => {
@@ -225,6 +267,7 @@ export function ReaderScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <EpubReader
+        ref={epubRef}
         bookId={book.id}
         initialCfi={book.progress_cfi}
         data={cachedData}
@@ -236,6 +279,7 @@ export function ReaderScreen() {
         onError={handleReaderError}
         onTapped={toggleOverlay}
         onSelected={handleSelected}
+        onToc={handleToc}
       />
 
       {/* Color picker — show when text is selected */}
@@ -280,7 +324,7 @@ export function ReaderScreen() {
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.panelHandle} />
-            <View style={styles.panelRow}>
+            <View style={styles.panelSection}>
               <View style={styles.fontControls}>
                 <TouchableOpacity style={styles.fontBtn} onPress={trackedDecrease}>
                   <Text style={styles.fontBtnText}>A−</Text>
@@ -294,15 +338,105 @@ export function ReaderScreen() {
                   <Text style={styles.fontLabelText}>{fontLabel}</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+            <View style={styles.panelSection}>
+              <TouchableOpacity style={styles.bookmarkAddBtn} onPress={handleAddBookmark}>
+                <Text style={styles.bookmarkAddText}>+</Text>
+              </TouchableOpacity>
+              <View style={{ width: 8 }} />
+              {toc.length > 0 && (
+                <TouchableOpacity
+                  style={styles.panelBtn}
+                  onPress={() => setShowChapters(true)}
+                >
+                  <Text style={styles.panelBtnText}>Chapters</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                style={styles.highlightsBtn}
-                onPress={() => setShowHighlights((p) => !p)}
+                style={styles.panelBtn}
+                onPress={() => setShowBookmarks(true)}
               >
-                <Text style={styles.highlightsBtnText}>
-                  Notes ({highlights.length})
-                </Text>
+                <Text style={styles.panelBtnText}>Bookmarks ({bookmarks.length})</Text>
               </TouchableOpacity>
             </View>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Chapters list */}
+      {showChapters && toc.length > 0 && (
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowChapters(false)}
+          />
+          <Animated.View
+            entering={FadeIn.springify()}
+            exiting={FadeOut}
+            style={[styles.chaptersPanel, { paddingBottom: insets.bottom + 16 }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.panelHandle} />
+            <Text style={styles.chaptersTitle}>Chapters</Text>
+            <FlatList
+              data={toc}
+              keyExtractor={(_, i) => String(i)}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.chapterItem, { paddingLeft: 16 + item.depth * 16 }]}
+                  onPress={() => handleGoToChapter(item.href)}
+                >
+                  <Text style={styles.chapterLabel} numberOfLines={1}>{item.label}</Text>
+                </TouchableOpacity>
+              )}
+              style={styles.chaptersList}
+            />
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Bookmarks list */}
+      {showBookmarks && (
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowBookmarks(false)}
+          />
+          <Animated.View
+            entering={FadeIn.springify()}
+            exiting={FadeOut}
+            style={[styles.chaptersPanel, { paddingBottom: insets.bottom + 16 }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.panelHandle} />
+            <Text style={styles.chaptersTitle}>Bookmarks</Text>
+            {bookmarks.length === 0 ? (
+              <Text style={styles.noHighlights}>No bookmarks yet</Text>
+            ) : (
+              <FlatList
+                data={bookmarks}
+                keyExtractor={(b) => b.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.chapterItem}
+                    onPress={() => handleGoToCfi(item.cfi)}
+                    onLongPress={() => {
+                      Alert.alert('Delete bookmark', item.label || 'Remove this bookmark?', [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete', style: 'destructive', onPress: () => removeBookmark(book.id, item.id) },
+                      ]);
+                    }}
+                  >
+                    <Text style={styles.chapterLabel} numberOfLines={1}>
+                      {item.label || `Page ${bookmarks.indexOf(item) + 1}`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                style={styles.chaptersList}
+              />
+            )}
           </Animated.View>
         </View>
       )}
@@ -377,11 +511,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
   },
-  panelRow: {
+  panelSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
   },
   fontControls: {
     flexDirection: 'row',
@@ -419,16 +551,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A3E',
     marginHorizontal: 4,
   },
-  highlightsBtn: {
-    backgroundColor: 'rgba(74,74,233,0.25)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+  panelBtn: {
+    backgroundColor: 'rgba(74,74,233,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
   },
-  highlightsBtnText: {
-    fontSize: 13,
+  panelBtnText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#4A4AE9',
+  },
+  bookmarkAddBtn: {
+    backgroundColor: 'rgba(74,74,233,0.3)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookmarkAddText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4A4AE9',
+    lineHeight: 20,
   },
   highlightsPanel: {
     position: 'absolute',
@@ -515,5 +661,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
     marginTop: 8,
+  },
+  chaptersPanel: {
+    backgroundColor: '#1A1A28',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 12,
+    maxHeight: 300,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  chaptersTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  chaptersList: {
+    maxHeight: 200,
+  },
+  chapterItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A2A3E',
+  },
+  chapterLabel: {
+    fontSize: 14,
+    color: '#B0B0CC',
   },
 });

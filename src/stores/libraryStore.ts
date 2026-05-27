@@ -39,11 +39,17 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   updateProgress: async (bookId: string, progress: number, cfi?: string) => {
-    await api.patch<BookResponse>(`/api/books/${bookId}`, {
-      progress_percent: progress,
-      progress_cfi: cfi ?? null,
-      last_opened_at: new Date().toISOString(),
-    });
+    if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, cfi);
+    try {
+      await api.patch<BookResponse>(`/api/books/${bookId}`, {
+        progress_percent: progress,
+        progress_cfi: cfi ?? null,
+        last_opened_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      if (__DEV__) console.warn('[libraryStore] PATCH failed:', e);
+      return;
+    }
 
     const { books } = get();
     set({

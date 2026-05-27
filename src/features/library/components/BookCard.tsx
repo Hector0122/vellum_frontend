@@ -33,13 +33,20 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
             {item.title}
           </Text>
           {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${item.progress_percent}%` },
-              ]}
-            />
+          <View style={styles.progressRow}>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(item.progress_percent, 100)}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {item.progress_percent > 0
+                ? `${Math.round(item.progress_percent)}%`
+                : '—'}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -85,16 +92,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B0B0CC',
   },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
   progressBar: {
-    height: 3,
+    flex: 1,
+    height: 4,
     backgroundColor: '#2A2A3E',
     borderRadius: 2,
-    marginTop: 6,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#4A4AE9',
     borderRadius: 2,
+  },
+  progressText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B0B0CC',
+    minWidth: 32,
+    textAlign: 'right',
   },
 });
