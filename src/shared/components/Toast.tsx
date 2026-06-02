@@ -58,17 +58,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   success: {
-    backgroundColor: 'rgba(0,255,136,0.08)',
+    backgroundColor: colors.toastSuccessBg,
     borderLeftWidth: 3,
     borderLeftColor: colors.success,
   },
   error: {
-    backgroundColor: 'rgba(255,107,107,0.08)',
+    backgroundColor: colors.toastErrorBg,
     borderLeftWidth: 3,
     borderLeftColor: colors.destructive,
   },
   info: {
-    backgroundColor: 'rgba(108,99,255,0.08)',
+    backgroundColor: colors.toastInfoBg,
     borderLeftWidth: 3,
     borderLeftColor: colors.accent,
   },
