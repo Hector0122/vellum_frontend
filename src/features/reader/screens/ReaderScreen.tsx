@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -723,7 +724,12 @@ export function ReaderScreen() {
                 <Icon name="close" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.summaryText}>{summary}</Text>
+            <ScrollView
+              style={styles.summaryScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.summaryText}>{summary}</Text>
+            </ScrollView>
           </Animated.View>
         </View>
       )}
@@ -900,6 +906,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   summaryPanel: {
+    flex: 1,
     backgroundColor: colors.elevated,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -907,6 +914,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     gap: 12,
     maxHeight: 350,
+    overflow: 'hidden',
     elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -922,6 +930,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
+    flex: 1,
+  },
+  summaryScroll: {
     flex: 1,
   },
   summaryText: {
