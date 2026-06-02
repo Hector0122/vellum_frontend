@@ -1,10 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  FlatList, Alert, Pressable,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
+  Alert,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,13 +29,19 @@ import { useNoteStore } from '@/stores/noteStore';
 import { useBookmarkStore } from '@/stores/bookmarkStore';
 import { EpubReader } from '../components/EpubReader';
 import type { EpubReaderHandle } from '../components/EpubReader';
-import { isEpubCached, getCachedEpubBase64, downloadAndCache } from '@/shared/lib/epubCache';
+import {
+  isEpubCached,
+  getCachedEpubBase64,
+  downloadAndCache,
+} from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
 import { useWarmPaper } from '@/shared/hooks/useWarmPaper';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
+import { api } from '@/shared/lib/api';
 import { showToast } from '@/shared/components/Toast';
+import { useReadingStats } from '@/shared/hooks/useReadingStats';
 import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList } from '@/types';
 
@@ -43,10 +64,12 @@ const FLATLIST_CONFIG = {
 
 export function ReaderScreen() {
   const route = useRoute<ReaderRoute>();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { bookId } = route.params;
   const { books, updateProgress } = useLibraryStore();
-  const { highlights, fetchHighlights, createHighlight, deleteHighlight } = useHighlightStore();
+  const { highlights, fetchHighlights, createHighlight, deleteHighlight } =
+    useHighlightStore();
   const { notes, fetchNotes, createNote, deleteNote } = useNoteStore();
   const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(false);
@@ -61,11 +84,34 @@ export function ReaderScreen() {
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [chapterWords, setChapterWords] = useState(0);
   const [chapterPct, setChapterPct] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [totalChapters, setTotalChapters] = useState(0);
+  const [wpm, setWpm] = useState(200);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const currentChapterIndexRef = useRef(0);
   const epubRef = useRef<EpubReaderHandle>(null);
   const currentCfiRef = useRef('');
-  const { fontSize, fontFamily, increaseSize, decreaseSize, cycleFont, fontLabel } = useFontPrefs();
+  const chapterWordsRef = useRef(0);
+  const lastChapterWordsRef = useRef(0);
+  const totalBookWordsRef = useRef(0);
+  const chaptersSeenRef = useRef(new Set<number>());
+  const chapterStartTimeRef = useRef(Date.now());
+  const lastChapterIndexRef = useRef(-1);
+  const {
+    fontSize,
+    fontFamily,
+    increaseSize,
+    decreaseSize,
+    cycleFont,
+    fontLabel,
+  } = useFontPrefs();
   const { warmPaper, toggle: toggleWarmPaper } = useWarmPaper();
-  const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } = useBookmarkStore();
+  const { startSession, endSession } = useReadingStats();
+  const sessionIdRef = useRef<string | null>(null);
+  const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } =
+    useBookmarkStore();
 
   const trackedIncrease = useCallback(() => {
     increaseSize();
@@ -82,7 +128,7 @@ export function ReaderScreen() {
     analytics.trackEvent('font_changed', { direction: 'cycle' });
   }, [cycleFont]);
 
-  const book = books.find((b) => b.id === bookId);
+  const book = books.find(b => b.id === bookId);
 
   useEffect(() => {
     if (!book) {
@@ -115,17 +161,57 @@ export function ReaderScreen() {
     analytics.trackPageView('Reader');
   }, [bookId]);
 
-  const handleProgress = useCallback((percent: number, cfi: string, chapPct: number) => {
-    if (__DEV__) console.log('[ReaderScreen] handleProgress:', percent, cfi);
-    currentCfiRef.current = cfi;
-    setChapterPct(chapPct);
-    if (book && percent >= 0) {
-      updateProgress(book.id, percent, cfi || undefined);
-    }
-  }, [book, updateProgress]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const id = await startSession(bookId);
+      if (!cancelled) sessionIdRef.current = id;
+    })();
+    return () => {
+      cancelled = true;
+      endSession(sessionIdRef.current, chapterWordsRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId]);
 
-  const handleReady = useCallback(() => {
+  const handleProgress = useCallback(
+    (percent: number, cfi: string, chapPct: number, chapterIndex: number) => {
+      currentCfiRef.current = cfi;
+      setChapterPct(chapPct);
+      setOverallProgress(percent);
+
+      const prevIndex = lastChapterIndexRef.current;
+      if (chapterIndex !== prevIndex && prevIndex !== -1) {
+        const prevWords = lastChapterWordsRef.current;
+        if (prevWords > 0) {
+          const elapsedMin = (Date.now() - chapterStartTimeRef.current) / 60000;
+          if (elapsedMin > 0.5 && elapsedMin < 120) {
+            const actualWPM = Math.round(prevWords / elapsedMin);
+            if (actualWPM > 50 && actualWPM < 1000) {
+              setWpm(p => Math.round(p * 0.7 + actualWPM * 0.3));
+            }
+          }
+        }
+        chapterStartTimeRef.current = Date.now();
+      }
+      lastChapterIndexRef.current = chapterIndex;
+      currentChapterIndexRef.current = chapterIndex;
+
+      if (!chaptersSeenRef.current.has(chapterIndex)) {
+        chaptersSeenRef.current.add(chapterIndex);
+        totalBookWordsRef.current += chapterWordsRef.current;
+      }
+
+      if (book && percent >= 0) {
+        updateProgress(book.id, percent, cfi || undefined);
+      }
+    },
+    [book, updateProgress],
+  );
+
+  const handleReady = useCallback((totalCh: number) => {
     setReady(true);
+    setTotalChapters(totalCh);
     fetchBookmarks(bookId);
   }, [fetchBookmarks, bookId]);
 
@@ -133,13 +219,56 @@ export function ReaderScreen() {
     setReaderError(msg);
   }, []);
 
-  const handleToc = useCallback((chapters: { label: string; href: string; depth: number }[]) => {
-    if (__DEV__) console.log('[ReaderScreen] TOC received:', chapters.length);
-    setToc(chapters);
-  }, []);
+  const handleToc = useCallback(
+    (chapters: { label: string; href: string; depth: number }[]) => {
+      if (__DEV__) console.log('[ReaderScreen] TOC received:', chapters.length);
+      setToc(chapters);
+    },
+    [],
+  );
 
   const handleWordCount = useCallback((words: number) => {
+    if (chapterWordsRef.current > 0) {
+      lastChapterWordsRef.current = chapterWordsRef.current;
+    }
     setChapterWords(words);
+    chapterWordsRef.current = words;
+  }, []);
+
+  const handleChapterText = useCallback(
+    async (text: string) => {
+      if (!text.trim()) {
+        setSummarizing(false);
+        showToast('error', 'No text found in chapter');
+        return;
+      }
+
+      const chapterIndex = currentChapterIndexRef.current;
+      try {
+        const { summary: result, cached } = await api.post<{
+          summary: string;
+          cached: boolean;
+        }>(`/api/books/${bookId}/${chapterIndex}/summary`, { text });
+
+        setSummary(result);
+        setShowSummary(true);
+        setSummarizing(false);
+        showToast(
+          'success',
+          cached ? 'Summary loaded from cache' : 'Summary created',
+        );
+      } catch (err: any) {
+        setSummarizing(false);
+        showToast('error', 'Summary failed', err.message);
+      }
+    },
+    [bookId],
+  );
+
+  const handleSummarize = useCallback(() => {
+    setSummarizing(true);
+    setSummary(null);
+    epubRef.current?.getChapterText();
   }, []);
 
   const handleAddBookmark = useCallback(async () => {
@@ -162,7 +291,13 @@ export function ReaderScreen() {
   }, []);
 
   const handleGoToChapter = useCallback((href: string) => {
-    if (__DEV__) console.log('[ReaderScreen] handleGoToChapter:', href, 'ref:', !!epubRef.current);
+    if (__DEV__)
+      console.log(
+        '[ReaderScreen] handleGoToChapter:',
+        href,
+        'ref:',
+        !!epubRef.current,
+      );
     epubRef.current?.goToChapter(href);
     setShowOverlay(false);
     setShowChapters(false);
@@ -173,7 +308,7 @@ export function ReaderScreen() {
       setSelected(null);
       return;
     }
-    setShowOverlay((prev) => !prev);
+    setShowOverlay(prev => !prev);
     if (showHighlights) setShowHighlights(false);
   }, [showHighlights, selected]);
 
@@ -183,66 +318,80 @@ export function ReaderScreen() {
     setShowHighlights(false);
   }, []);
 
-  const handleCreateHighlight = useCallback(async (color: string) => {
-    if (!selected) return;
-    setCreatingHighlight(true);
-    try {
-      await createHighlight(bookId, selected.text, selected.cfiRange, color);
-      await fetchNotes(bookId);
-      setSelected(null);
-      hapticSuccess();
-      showToast('success', 'Highlight created');
-      analytics.trackHighlightCreated(bookId, color);
-    } catch (err: any) {
-      showToast('error', 'Error', err.message);
-    } finally {
-      setCreatingHighlight(false);
-    }
-  }, [bookId, selected, createHighlight, fetchNotes]);
+  const handleCreateHighlight = useCallback(
+    async (color: string) => {
+      if (!selected) return;
+      setCreatingHighlight(true);
+      try {
+        await createHighlight(bookId, selected.text, selected.cfiRange, color);
+        await fetchNotes(bookId);
+        setSelected(null);
+        hapticSuccess();
+        showToast('success', 'Highlight created');
+        analytics.trackHighlightCreated(bookId, color);
+      } catch (err: any) {
+        showToast('error', 'Error', err.message);
+      } finally {
+        setCreatingHighlight(false);
+      }
+    },
+    [bookId, selected, createHighlight, fetchNotes],
+  );
 
-  const handleDeleteHighlight = useCallback((highlightId: string) => {
-    hapticLight();
-    Alert.alert('Delete highlight', 'Remove this highlight?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteHighlight(bookId, highlightId);
-          analytics.trackEvent('highlight_deleted', { book_id: bookId });
+  const handleDeleteHighlight = useCallback(
+    (highlightId: string) => {
+      hapticLight();
+      Alert.alert('Delete highlight', 'Remove this highlight?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteHighlight(bookId, highlightId);
+            analytics.trackEvent('highlight_deleted', { book_id: bookId });
+          },
         },
-      },
-    ]);
-  }, [bookId, deleteHighlight]);
+      ]);
+    },
+    [bookId, deleteHighlight],
+  );
 
-  const handleSaveNote = useCallback(async (highlightId: string, text: string) => {
-    await createNote(bookId, text, highlightId);
-    hapticLight();
-    showToast('success', 'Note saved');
-    analytics.trackEvent('note_created', { book_id: bookId });
-  }, [bookId, createNote]);
+  const handleSaveNote = useCallback(
+    async (highlightId: string, text: string) => {
+      await createNote(bookId, text, highlightId);
+      hapticLight();
+      showToast('success', 'Note saved');
+      analytics.trackEvent('note_created', { book_id: bookId });
+    },
+    [bookId, createNote],
+  );
 
-  const handleDeleteNote = useCallback((noteId: string) => {
-    hapticLight();
-    Alert.alert('Delete note', 'Remove this note?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteNote(bookId, noteId);
-          analytics.trackEvent('note_deleted', { book_id: bookId });
+  const handleDeleteNote = useCallback(
+    (noteId: string) => {
+      hapticLight();
+      Alert.alert('Delete note', 'Remove this note?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteNote(bookId, noteId);
+            analytics.trackEvent('note_deleted', { book_id: bookId });
+          },
         },
-      },
-    ]);
-  }, [bookId, deleteNote]);
+      ]);
+    },
+    [bookId, deleteNote],
+  );
 
-  const highlightLocations = useMemo(() =>
-    highlights.map((h) => ({
-      location: h.location,
-      color: h.color,
-    })),
-  [highlights]);
+  const highlightLocations = useMemo(
+    () =>
+      highlights.map(h => ({
+        location: h.location,
+        color: h.color,
+      })),
+    [highlights],
+  );
 
   const notesByHighlight = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -254,6 +403,25 @@ export function ReaderScreen() {
     }
     return map;
   }, [notes]);
+
+  const timeRemaining = useMemo(() => {
+    if (chapterWords === 0) return { chapterMin: 0, totalMin: 0 };
+
+    const remainingWords = Math.round(chapterWords * (1 - chapterPct));
+    const chapterMin = Math.max(1, Math.round(remainingWords / wpm));
+
+    let totalMin = 0;
+    if (totalChapters > 0 && chaptersSeenRef.current.size > 0) {
+      const avgWordsPerChapter = totalBookWordsRef.current / chaptersSeenRef.current.size;
+      const estimatedTotalWords = avgWordsPerChapter * totalChapters;
+      const remainingBookWords = Math.round(
+        estimatedTotalWords * (1 - overallProgress / 100),
+      );
+      totalMin = Math.round(remainingBookWords / wpm);
+    }
+
+    return { chapterMin, totalMin };
+  }, [chapterWords, chapterPct, wpm, totalChapters, overallProgress]);
 
   const renderHighlightItem = useCallback(
     ({ item, index }: { item: any; index: number }) => (
@@ -267,7 +435,13 @@ export function ReaderScreen() {
         onDeleteNote={handleDeleteNote}
       />
     ),
-    [notesByHighlight, bookId, handleDeleteHighlight, handleSaveNote, handleDeleteNote],
+    [
+      notesByHighlight,
+      bookId,
+      handleDeleteHighlight,
+      handleSaveNote,
+      handleDeleteNote,
+    ],
   );
 
   if (!book) {
@@ -296,12 +470,24 @@ export function ReaderScreen() {
         onSelected={handleSelected}
         onToc={handleToc}
         onWordCount={handleWordCount}
+        onChapterText={handleChapterText}
       />
 
       {ready && (
         <View style={[styles.timeBadge, { bottom: insets.bottom + 8 }]}>
           <Text style={styles.timeBadgeText}>
-            ~{Math.max(1, Math.round((chapterWords * (1 - chapterPct)) / 200))} min left (w:{chapterWords})
+            {chapterWords > 0
+              ? `~${timeRemaining.chapterMin}m in chap${
+                  timeRemaining.totalMin > 0 &&
+                  timeRemaining.totalMin > timeRemaining.chapterMin
+                    ? ` · ~${
+                        timeRemaining.totalMin >= 60
+                          ? `${Math.floor(timeRemaining.totalMin / 60)}h ${timeRemaining.totalMin % 60}m`
+                          : `${timeRemaining.totalMin}m`
+                      } total`
+                    : ''
+                }`
+              : 'Calculating...'}
           </Text>
         </View>
       )}
@@ -311,7 +497,10 @@ export function ReaderScreen() {
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
-            onPress={() => { setShowOverlay(false); setSelected(null); }}
+            onPress={() => {
+              setShowOverlay(false);
+              setSelected(null);
+            }}
           />
           <Animated.View
             entering={FadeIn.springify()}
@@ -327,7 +516,7 @@ export function ReaderScreen() {
                   &quot;{selected.text}&quot;
                 </Text>
                 <View style={styles.pickerColors}>
-                  {HIGHLIGHT_COLORS.map((c) => (
+                  {HIGHLIGHT_COLORS.map(c => (
                     <TouchableOpacity
                       key={c.color}
                       style={[styles.colorDot, { backgroundColor: c.color }]}
@@ -343,28 +532,54 @@ export function ReaderScreen() {
             )}
 
             <View style={styles.fontRow}>
-              <TouchableOpacity style={styles.fontBtn} onPress={trackedDecrease}>
+              <TouchableOpacity
+                style={styles.fontBtn}
+                onPress={trackedDecrease}
+              >
                 <Text style={styles.fontBtnText}>A−</Text>
               </TouchableOpacity>
-              <Text style={styles.fontSizeLabel}>{Math.round(fontSize * 100)}%</Text>
-              <TouchableOpacity style={styles.fontBtn} onPress={trackedIncrease}>
+              <Text style={styles.fontSizeLabel}>
+                {Math.round(fontSize * 100)}%
+              </Text>
+              <TouchableOpacity
+                style={styles.fontBtn}
+                onPress={trackedIncrease}
+              >
                 <Text style={styles.fontBtnText}>A+</Text>
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity style={styles.fontBtn} onPress={trackedCycleFont}>
+              <TouchableOpacity
+                style={styles.fontBtn}
+                onPress={trackedCycleFont}
+              >
                 <Text style={styles.fontLabelText}>{fontLabel}</Text>
               </TouchableOpacity>
               <View style={styles.divider} />
               <TouchableOpacity
                 style={[styles.fontBtn, warmPaper && styles.warmActive]}
-                onPress={() => { toggleWarmPaper(); analytics.trackEvent('warm_paper_toggle', { enabled: !warmPaper }); }}
+                onPress={() => {
+                  toggleWarmPaper();
+                  analytics.trackEvent('warm_paper_toggle', {
+                    enabled: !warmPaper,
+                  });
+                }}
               >
-                <Text style={[styles.fontLabelText, warmPaper && styles.warmActiveText]}>Warm</Text>
+                <Text
+                  style={[
+                    styles.fontLabelText,
+                    warmPaper && styles.warmActiveText,
+                  ]}
+                >
+                  Warm
+                </Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.actionBtn} onPress={handleAddBookmark}>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={handleAddBookmark}
+              >
                 <Text style={styles.actionBtnIcon}>+</Text>
                 <Text style={styles.actionBtnText}>Save</Text>
               </TouchableOpacity>
@@ -380,7 +595,28 @@ export function ReaderScreen() {
                 style={styles.actionBtn}
                 onPress={() => setShowBookmarks(true)}
               >
-                <Text style={styles.actionBtnText}>Bookmarks ({bookmarks.length})</Text>
+                <Text style={styles.actionBtnText}>
+                  Bookmarks ({bookmarks.length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, summarizing && styles.actionBtnDisabled]}
+                onPress={handleSummarize}
+                disabled={summarizing}
+              >
+                <Icon
+                  name={summarizing ? 'loading' : 'auto-fix'}
+                  size={16}
+                  color={summarizing ? colors.textMuted : '#10B981'}
+                />
+                <Text
+                  style={[
+                    styles.actionBtnText,
+                    { color: summarizing ? colors.textMuted : '#10B981' },
+                  ]}
+                >
+                  {summarizing ? 'Summarizing...' : 'AI Summary'}
+                </Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -398,7 +634,10 @@ export function ReaderScreen() {
           <Animated.View
             entering={FadeIn.springify()}
             exiting={FadeOut}
-            style={[styles.chaptersPanel, { paddingBottom: insets.bottom + 16 }]}
+            style={[
+              styles.chaptersPanel,
+              { paddingBottom: insets.bottom + 16 },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.panelHandle} />
@@ -408,10 +647,15 @@ export function ReaderScreen() {
               keyExtractor={(_, i) => String(i)}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.chapterItem, { paddingLeft: 16 + item.depth * 16 }]}
+                  style={[
+                    styles.chapterItem,
+                    { paddingLeft: 16 + item.depth * 16 },
+                  ]}
                   onPress={() => handleGoToChapter(item.href)}
                 >
-                  <Text style={styles.chapterLabel} numberOfLines={1}>{item.label}</Text>
+                  <Text style={styles.chapterLabel} numberOfLines={1}>
+                    {item.label}
+                  </Text>
                 </TouchableOpacity>
               )}
               style={styles.chaptersList}
@@ -431,7 +675,10 @@ export function ReaderScreen() {
           <Animated.View
             entering={FadeIn.springify()}
             exiting={FadeOut}
-            style={[styles.chaptersPanel, { paddingBottom: insets.bottom + 16 }]}
+            style={[
+              styles.chaptersPanel,
+              { paddingBottom: insets.bottom + 16 },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.panelHandle} />
@@ -441,16 +688,24 @@ export function ReaderScreen() {
             ) : (
               <FlatList
                 data={bookmarks}
-                keyExtractor={(b) => b.id}
+                keyExtractor={b => b.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={styles.chapterItem}
                     onPress={() => handleGoToCfi(item.cfi)}
                     onLongPress={() => {
-                      Alert.alert('Delete bookmark', item.label || 'Remove this bookmark?', [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', style: 'destructive', onPress: () => removeBookmark(book.id, item.id) },
-                      ]);
+                      Alert.alert(
+                        'Delete bookmark',
+                        item.label || 'Remove this bookmark?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: () => removeBookmark(book.id, item.id),
+                          },
+                        ],
+                      );
                     }}
                   >
                     <Text style={styles.chapterLabel} numberOfLines={1}>
@@ -465,21 +720,70 @@ export function ReaderScreen() {
         </View>
       )}
 
+      {/* AI Summary */}
+      {showSummary && summary && (
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowSummary(false)}
+          />
+          <Animated.View
+            entering={FadeIn.springify()}
+            exiting={FadeOut}
+            style={[
+              styles.summaryPanel,
+              { paddingBottom: insets.bottom + 16 },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.panelHandle} />
+            <View style={styles.summaryHeader}>
+              <Icon name="auto-fix" size={18} color="#10B981" />
+              <Text style={styles.summaryTitle}>AI Summary</Text>
+              <TouchableOpacity onPress={() => setShowSummary(false)}>
+                <Icon name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.summaryText}>{summary}</Text>
+          </Animated.View>
+        </View>
+      )}
+
       {/* Highlights list */}
       {showHighlights && (
-        <View style={[styles.highlightsPanel, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 }]}>
+        <View
+          style={[
+            styles.highlightsPanel,
+            { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16 },
+          ]}
+        >
           <View style={styles.highlightsHeader}>
             <Text style={styles.highlightsTitle}>Highlights</Text>
-            <TouchableOpacity onPress={() => { setShowHighlights(false); }}>
-              <Text style={{ color: colors.accent, fontSize: 15, fontWeight: '600' }}>Close</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowHighlights(false);
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.accent,
+                  fontSize: 15,
+                  fontWeight: '600',
+                }}
+              >
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
           {highlights.length === 0 ? (
-            <Text style={styles.noHighlights}>Select text to create a highlight</Text>
+            <Text style={styles.noHighlights}>
+              Select text to create a highlight
+            </Text>
           ) : (
             <FlatList
               data={highlights}
-              keyExtractor={(h) => h.id}
+              keyExtractor={h => h.id}
               renderItem={renderHighlightItem}
               contentContainerStyle={styles.highlightsList}
               initialNumToRender={FLATLIST_CONFIG.initialNumToRender}
@@ -494,11 +798,9 @@ export function ReaderScreen() {
       {/* Loading overlay */}
       {!ready && (
         <View style={styles.loadingOverlay}>
-        <ActivityIndicator color={colors.accent} size="large" />
+          <ActivityIndicator color={colors.accent} size="large" />
           <Text style={styles.loadingText}>Loading reader...</Text>
-          {readerError && (
-            <Text style={styles.errorText}>{readerError}</Text>
-          )}
+          {readerError && <Text style={styles.errorText}>{readerError}</Text>}
         </View>
       )}
     </SafeAreaView>
@@ -622,6 +924,40 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
+  actionBtnDisabled: {
+    opacity: 0.5,
+  },
+  summaryPanel: {
+    backgroundColor: colors.elevated,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    gap: 12,
+    maxHeight: 350,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.white,
+    flex: 1,
+  },
+  summaryText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+    paddingBottom: 8,
+  },
   highlightsPanel: {
     position: 'absolute',
     top: 0,
@@ -712,6 +1048,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     zIndex: 999,
+    elevation: 10,
   },
   timeBadgeText: {
     color: 'rgba(0,0,0,0.7)',

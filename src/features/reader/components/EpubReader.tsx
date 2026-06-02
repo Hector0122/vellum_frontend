@@ -1,4 +1,11 @@
-import React, { useRef, useCallback, useEffect, useState, useMemo, useImperativeHandle } from 'react';
+import React, {
+  useRef,
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useImperativeHandle,
+} from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
@@ -18,18 +25,25 @@ interface EpubReaderProps {
   fontSize?: number;
   fontFamily?: string;
   warmPaper?: boolean;
-  onProgress?: (percent: number, cfi: string, chapterPct: number) => void;
-  onReady?: () => void;
+  onProgress?: (
+    percent: number,
+    cfi: string,
+    chapterPct: number,
+    chapterIndex: number,
+  ) => void;
+  onReady?: (totalChapters: number) => void;
   onError?: (msg: string) => void;
   onTapped?: () => void;
   onSelected?: (cfiRange: string, text: string) => void;
   onToc?: (chapters: TocChapter[]) => void;
   onWordCount?: (words: number) => void;
+  onChapterText?: (text: string) => void;
 }
 
 export interface EpubReaderHandle {
   goToChapter: (href: string) => void;
   goToCfi: (cfi: string) => void;
+  getChapterText: () => void;
 }
 
 interface TocChapter {
@@ -38,15 +52,35 @@ interface TocChapter {
   depth: number;
 }
 
-export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1, fontFamily = 'system-ui', warmPaper = false, onProgress, onReady, onError, onTapped, onSelected, onToc, onWordCount }: EpubReaderProps, ref) {
-  const webviewRef = useRef<WebView>(null);
-  const readyRef = useRef(false);
-  const [html, setHtml] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(
+  function EpubReader(
+    {
+      bookId,
+      initialCfi,
+      data,
+      highlights,
+      fontSize = 1,
+      fontFamily = 'system-ui',
+      warmPaper = false,
+      onProgress,
+      onReady,
+      onError,
+      onTapped,
+      onSelected,
+      onToc,
+      onWordCount,
+      onChapterText,
+    }: EpubReaderProps,
+    ref,
+  ) {
+    const webviewRef = useRef<WebView>(null);
+    const readyRef = useRef(false);
+    const [html, setHtml] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-  useImperativeHandle(ref, () => ({
-    goToChapter: (href: string) => {
-      const js = `
+    useImperativeHandle(ref, () => ({
+      goToChapter: (href: string) => {
+        const js = `
 try {
   if (typeof window.__goToChapter === 'function') {
     window.__goToChapter(${JSON.stringify(href)});
@@ -57,45 +91,56 @@ try {
   window.ReactNativeWebView.postMessage(JSON.stringify({type:'debug',msg:'goToChapter error: '+e.message}));
 }
 true;`;
-      webviewRef.current?.injectJavaScript(js);
-    },
-    goToCfi: (cfi: string) => {
+        webviewRef.current?.injectJavaScript(js);
+      },
+      goToCfi: (cfi: string) => {
+        webviewRef.current?.injectJavaScript(
+          `window.__rendition && window.__rendition.display(${JSON.stringify(
+            cfi,
+          )}); true;`,
+        );
+      },
+      getChapterText: () => {
+        webviewRef.current?.injectJavaScript(
+          `try{var f=document.querySelector('iframe');var t=f&&f.contentDocument?f.contentDocument.body.textContent||'':'';window.ReactNativeWebView.postMessage(JSON.stringify({type:'chapterText',text:t.slice(0,15000)}))}catch(e){window.ReactNativeWebView.postMessage(JSON.stringify({type:'chapterText',text:''}))};true;`,
+        );
+      },
+    }));
+
+    useEffect(() => {
       webviewRef.current?.injectJavaScript(
-        `window.__rendition && window.__rendition.display(${JSON.stringify(cfi)}); true;`,
+        `window.__setFont ? window.__setFont(${fontSize}, ${JSON.stringify(
+          fontFamily,
+        )}) : false; true;`,
       );
-    },
-  }));
+    }, [fontSize, fontFamily]);
 
-  useEffect(() => {
-    webviewRef.current?.injectJavaScript(
-      `window.__setFont ? window.__setFont(${fontSize}, ${JSON.stringify(fontFamily)}) : false; true;`,
-    );
-  }, [fontSize, fontFamily]);
+    useEffect(() => {
+      webviewRef.current?.injectJavaScript(
+        `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
+      );
+    }, [warmPaper]);
 
-  useEffect(() => {
-    webviewRef.current?.injectJavaScript(
-      `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
-    );
-  }, [warmPaper]);
+    useEffect(() => {
+      if (highlights && highlights.length > 0) {
+        const encoded = JSON.stringify(highlights);
+        webviewRef.current?.injectJavaScript(
+          `window.__applyHighlights && window.__applyHighlights(${encoded}); true;`,
+        );
+      }
+    }, [highlights]);
 
-  useEffect(() => {
-    if (highlights && highlights.length > 0) {
-      const encoded = JSON.stringify(highlights);
-      webviewRef.current?.injectJavaScript(`window.__applyHighlights && window.__applyHighlights(${encoded}); true;`);
-    }
-  }, [highlights]);
+    useEffect(() => {
+      let cancelled = false;
 
-  useEffect(() => {
-    let cancelled = false;
+      (async () => {
+        try {
+          const token = await AsyncStorage.getItem('auth_access_token');
+          if (!token || cancelled) return;
 
-    (async () => {
-      try {
-        const token = await AsyncStorage.getItem('auth_access_token');
-        if (!token || cancelled) return;
+          const proxyUrl = `${API_URL}/api/books/${bookId}/file?token=${token}`;
 
-        const proxyUrl = `${API_URL}/api/books/${bookId}/file?token=${token}`;
-
-        const htmlContent = `<!DOCTYPE html>
+          const htmlContent = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -339,6 +384,17 @@ true;`;
                 chapterPct: location.start.percentage,
                 cfi: location.start.cfi,
               });
+
+              try {
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentDocument) {
+                  var text = iframe.contentDocument.body.textContent || '';
+                  var words = text.trim().split(/\\s+/).filter(function(w) { return w.length > 0; }).length;
+                  if (words > 0) {
+                    post('wordcount', { words: words });
+                  }
+                }
+              } catch(ex) {}
             }
           });
 
@@ -404,119 +460,178 @@ true;`;
 </body>
 </html>`;
 
-        if (cancelled) return;
-        setHtml(htmlContent);
-      } catch (err: any) {
-        if (!cancelled) setError(err.message);
-      }
-    })();
+          if (cancelled) return;
+          setHtml(htmlContent);
+        } catch (err: any) {
+          if (!cancelled) setError(err.message);
+        }
+      })();
 
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookId]);
+      return () => {
+        cancelled = true;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [bookId]);
 
-  const panGesture = useMemo(() => Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-20, 20])
-    .failOffsetY([-20, 20])
-    .onEnd((event) => {
-      if (Math.abs(event.translationX) > 60) {
-        const js = event.translationX > 0
-          ? 'window.__pageFlip ? window.__pageFlip(-1) : (window.__rendition ? window.__rendition.prev().catch(function(){}) : false); true;'
-          : 'window.__pageFlip ? window.__pageFlip(1) : (window.__rendition ? window.__rendition.next().catch(function(){}) : false); true;';
-        webviewRef.current?.injectJavaScript(js);
-      }
-    }), []);
+    const panGesture = useMemo(
+      () =>
+        Gesture.Pan()
+          .runOnJS(true)
+          .activeOffsetX([-20, 20])
+          .failOffsetY([-20, 20])
+          .onEnd(event => {
+            if (Math.abs(event.translationX) > 60) {
+              const js =
+                event.translationX > 0
+                  ? 'window.__pageFlip ? window.__pageFlip(-1) : (window.__rendition ? window.__rendition.prev().catch(function(){}) : false); true;'
+                  : 'window.__pageFlip ? window.__pageFlip(1) : (window.__rendition ? window.__rendition.next().catch(function(){}) : false); true;';
+              webviewRef.current?.injectJavaScript(js);
+            }
+          }),
+      [],
+    );
 
-  const doubleTapGesture = useMemo(() => Gesture.Tap()
-    .numberOfTaps(2)
-    .runOnJS(true)
-    .onEnd(() => {
-      onTapped?.();
-    }), [onTapped]);
+    const doubleTapGesture = useMemo(
+      () =>
+        Gesture.Tap()
+          .numberOfTaps(2)
+          .runOnJS(true)
+          .onEnd(() => {
+            onTapped?.();
+          }),
+      [onTapped],
+    );
 
-  // Combine pan and double-tap gestures - they should be able to run simultaneously
-  // Pan for page swiping, double-tap for opening overlay
-  const composedGesture = useMemo(() => 
-    Gesture.Simultaneous(panGesture, doubleTapGesture), 
-    [panGesture, doubleTapGesture]);
+    // Combine pan and double-tap gestures - they should be able to run simultaneously
+    // Pan for page swiping, double-tap for opening overlay
+    const composedGesture = useMemo(
+      () => Gesture.Simultaneous(panGesture, doubleTapGesture),
+      [panGesture, doubleTapGesture],
+    );
 
-  const handleMessage = useCallback((event: WebViewMessageEvent) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'ready' && !readyRef.current) {
-        readyRef.current = true;
-        onReady?.();
-        webviewRef.current?.injectJavaScript(
-          `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
-        );
-      } else if (msg.type === 'location') {
-        if (__DEV__) console.log('[EpubReader] location msg:', msg.percentage, msg.cfi);
-        const pct = Math.round(msg.percentage * 100);
-        onProgress?.(pct, msg.cfi || '', msg.chapterPct ?? 0);
-      } else if (msg.type === 'tapped') {
-        onTapped?.();
-      } else if (msg.type === 'toc') {
-        if (__DEV__) console.log('[EpubReader] toc:', msg.chapters?.length, 'chapters');
-        onToc?.(msg.chapters);
-      } else if (msg.type === 'debug') {
-        if (__DEV__) console.log('[WebView]', msg.msg);
-      } else if (msg.type === 'selected') {
-        onSelected?.(msg.cfiRange, msg.text);
-      } else if (msg.type === 'wordcount') {
-        onWordCount?.(msg.words);
-      } else if (msg.type === 'error') {
-        setError(msg.msg || 'Unknown WebView error');
-        onError?.(msg.msg || 'Unknown WebView error');
-      }
-    } catch (e) {
-      if (__DEV__) {
-        console.warn('[EpubReader] Unparseable message:', event.nativeEvent.data);
-      }
-    }
-  }, [onProgress, onReady, onError, onTapped, onSelected, onToc, onWordCount, warmPaper]);
+    const handleMessage = useCallback(
+      (event: WebViewMessageEvent) => {
+        try {
+          const msg = JSON.parse(event.nativeEvent.data);
+          if (msg.type === 'ready' && !readyRef.current) {
+            readyRef.current = true;
+            onReady?.(msg.totalChapters ?? 0);
+            webviewRef.current?.injectJavaScript(
+              `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
+            );
+            webviewRef.current?.injectJavaScript(
+              `setTimeout(function(){try{var f=document.querySelector('iframe');if(f&&f.contentDocument){var t=f.contentDocument.body.textContent||'';var w=t.trim().split(/\\s+/).filter(function(x){return x.length>0}).length;if(w>0){window.ReactNativeWebView.postMessage(JSON.stringify({type:'wordcount',words:w}))}}}catch(e){};true;},300);`,
+            );
+          } else if (msg.type === 'location') {
+            if (__DEV__)
+              console.log(
+                '[EpubReader] location msg:',
+                msg.percentage,
+                msg.cfi,
+              );
+            const pct = Math.round(msg.percentage * 100);
+            onProgress?.(
+              pct,
+              msg.cfi || '',
+              msg.chapterPct ?? 0,
+              msg.index ?? 0,
+            );
+          } else if (msg.type === 'tapped') {
+            onTapped?.();
+          } else if (msg.type === 'toc') {
+            if (__DEV__)
+              console.log(
+                '[EpubReader] toc:',
+                msg.chapters?.length,
+                'chapters',
+              );
+            onToc?.(msg.chapters);
+          } else if (msg.type === 'debug') {
+            if (__DEV__) console.log('[WebView]', msg.msg);
+          } else if (msg.type === 'selected') {
+            onSelected?.(msg.cfiRange, msg.text);
+          } else if (msg.type === 'wordcount') {
+            onWordCount?.(msg.words);
+          } else if (msg.type === 'chapterText') {
+            onChapterText?.(msg.text || '');
+          } else if (msg.type === 'error') {
+            setError(msg.msg || 'Unknown WebView error');
+            onError?.(msg.msg || 'Unknown WebView error');
+          }
+        } catch (err: any) {
+          console.warn(
+            '[EpubReader] Failed to parse message:',
+            err,
+            event.nativeEvent.data,
+          );
+          if (__DEV__) {
+            console.warn(
+              '[EpubReader] Unparseable message:',
+              event.nativeEvent.data,
+            );
+          }
+        }
+      },
+      [
+        onProgress,
+        onReady,
+        onError,
+        onTapped,
+        onSelected,
+        onToc,
+        onWordCount,
+        onChapterText,
+        warmPaper,
+      ],
+    );
 
-  return (
-    <View style={styles.container}>
-      {!html && !error && (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} size="large" />
-          <Text style={styles.stepText}>Preparing reader...</Text>
-        </View>
-      )}
-      {error && (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>Error: {error}</Text>
-        </View>
-      )}
-      {html && (
-        <GestureDetector gesture={composedGesture}>
-          <View style={styles.webview}>
-            <WebView
-              ref={webviewRef}
-              source={{ html }}
-              style={styles.webview}
-              onMessage={handleMessage}
-              javaScriptEnabled
-              domStorageEnabled
-              originWhitelist={['*']}
-              allowFileAccess
-              allowUniversalAccessFromFileURLs
-              mixedContentMode="always"
-              scrollEnabled={false}
-              bounces={false}
-            />
+    return (
+      <View style={styles.container}>
+        {!html && !error && (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.accent} size="large" />
+            <Text style={styles.stepText}>Preparing reader...</Text>
           </View>
-        </GestureDetector>
-      )}
-    </View>
-  );
-});
+        )}
+        {error && (
+          <View style={styles.center}>
+            <Text style={styles.errorText}>Error: {error}</Text>
+          </View>
+        )}
+        {html && (
+          <GestureDetector gesture={composedGesture}>
+            <View style={styles.webview}>
+              <WebView
+                ref={webviewRef}
+                source={{ html }}
+                style={styles.webview}
+                onMessage={handleMessage}
+                javaScriptEnabled
+                domStorageEnabled
+                originWhitelist={['*']}
+                allowFileAccess
+                allowUniversalAccessFromFileURLs
+                mixedContentMode="always"
+                scrollEnabled={false}
+                bounces={false}
+              />
+            </View>
+          </GestureDetector>
+        )}
+      </View>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   webview: { flex: 1, backgroundColor: '#FAFAFA' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   stepText: { color: colors.textSecondary, fontSize: 14 },
-  errorText: { color: colors.destructive, fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },
+  errorText: {
+    color: colors.destructive,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
 });

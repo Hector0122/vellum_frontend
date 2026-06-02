@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -24,6 +25,7 @@ import { removeCachedEpub } from '@/shared/lib/epubCache';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
+import { useReadingStats } from '@/shared/hooks/useReadingStats';
 import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import { AnimatedFAB } from '@/shared/components/AnimatedFAB';
 import { BookCard } from '@/features/library/components/BookCard';
@@ -65,11 +67,32 @@ export function LibraryScreen() {
   const [sort, setSort] = useState<SortMode>('last');
   const [showSort, setShowSort] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const { streak, todayMinutes, streakChanged, fetchStreak } =
+    useReadingStats();
+  const flameScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     fetchBooks();
+    fetchStreak();
     analytics.trackPageView('Library');
-  }, [fetchBooks]);
+  }, [fetchBooks, fetchStreak]);
+
+  useEffect(() => {
+    if (streakChanged && streak > 0) {
+      Animated.sequence([
+        Animated.timing(flameScale, {
+          toValue: 1.4,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(flameScale, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [streak, streakChanged, flameScale]);
 
   const filtered = useMemo(() => {
     let result = [...books];
@@ -226,7 +249,24 @@ export function LibraryScreen() {
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.heading}>Library</Text>
+            <View style={styles.headerLeft}>
+              <Text style={styles.heading}>Library</Text>
+              <Animated.View
+                style={[
+                  styles.streakBadge,
+                  { transform: [{ scale: flameScale }] },
+                ]}
+              >
+                <Icon
+                  name="fire"
+                  size={18}
+                  color={streak > 0 ? '#FF6B35' : colors.textMuted}
+                />
+                {streak > 0 && (
+                  <Text style={styles.streakText}>{streak}</Text>
+                )}
+              </Animated.View>
+            </View>
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.headerBtn}
@@ -442,6 +482,25 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: colors.white,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,107,53,0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 2,
+  },
+  streakText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FF6B35',
   },
   headerActions: {
     flexDirection: 'row',
