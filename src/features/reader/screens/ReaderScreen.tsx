@@ -16,6 +16,7 @@ import { EpubReader } from '../components/EpubReader';
 import type { EpubReaderHandle } from '../components/EpubReader';
 import { isEpubCached, getCachedEpubBase64, downloadAndCache } from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
+import { useWarmPaper } from '@/shared/hooks/useWarmPaper';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
@@ -58,9 +59,12 @@ export function ReaderScreen() {
   const [toc, setToc] = useState<{ label: string; href: string; depth: number }[]>([]);
   const [showChapters, setShowChapters] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [chapterWords, setChapterWords] = useState(0);
+  const [chapterPct, setChapterPct] = useState(0);
   const epubRef = useRef<EpubReaderHandle>(null);
   const currentCfiRef = useRef('');
   const { fontSize, fontFamily, increaseSize, decreaseSize, cycleFont, fontLabel } = useFontPrefs();
+  const { warmPaper, toggle: toggleWarmPaper } = useWarmPaper();
   const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } = useBookmarkStore();
 
   const trackedIncrease = useCallback(() => {
@@ -111,9 +115,10 @@ export function ReaderScreen() {
     analytics.trackPageView('Reader');
   }, [bookId]);
 
-  const handleProgress = useCallback((percent: number, cfi: string) => {
+  const handleProgress = useCallback((percent: number, cfi: string, chapPct: number) => {
     if (__DEV__) console.log('[ReaderScreen] handleProgress:', percent, cfi);
     currentCfiRef.current = cfi;
+    setChapterPct(chapPct);
     if (book && percent >= 0) {
       updateProgress(book.id, percent, cfi || undefined);
     }
@@ -131,6 +136,10 @@ export function ReaderScreen() {
   const handleToc = useCallback((chapters: { label: string; href: string; depth: number }[]) => {
     if (__DEV__) console.log('[ReaderScreen] TOC received:', chapters.length);
     setToc(chapters);
+  }, []);
+
+  const handleWordCount = useCallback((words: number) => {
+    setChapterWords(words);
   }, []);
 
   const handleAddBookmark = useCallback(async () => {
@@ -278,6 +287,7 @@ export function ReaderScreen() {
         data={cachedData}
         fontSize={fontSize}
         fontFamily={fontFamily}
+        warmPaper={warmPaper}
         highlights={highlightLocations}
         onProgress={handleProgress}
         onReady={handleReady}
@@ -285,7 +295,16 @@ export function ReaderScreen() {
         onTapped={toggleOverlay}
         onSelected={handleSelected}
         onToc={handleToc}
+        onWordCount={handleWordCount}
       />
+
+      {ready && (
+        <View style={[styles.timeBadge, { bottom: insets.bottom + 8 }]}>
+          <Text style={styles.timeBadgeText}>
+            ~{Math.max(1, Math.round((chapterWords * (1 - chapterPct)) / 200))} min left (w:{chapterWords})
+          </Text>
+        </View>
+      )}
 
       {showOverlay && ready && (
         <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
@@ -334,6 +353,13 @@ export function ReaderScreen() {
               <View style={styles.divider} />
               <TouchableOpacity style={styles.fontBtn} onPress={trackedCycleFont}>
                 <Text style={styles.fontLabelText}>{fontLabel}</Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={[styles.fontBtn, warmPaper && styles.warmActive]}
+                onPress={() => { toggleWarmPaper(); analytics.trackEvent('warm_paper_toggle', { enabled: !warmPaper }); }}
+              >
+                <Text style={[styles.fontLabelText, warmPaper && styles.warmActiveText]}>Warm</Text>
               </TouchableOpacity>
             </View>
 
@@ -559,6 +585,12 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
   },
+  warmActive: {
+    backgroundColor: colors.accent,
+  },
+  warmActiveText: {
+    color: '#FFF8E7',
+  },
   divider: {
     width: 1,
     height: 24,
@@ -675,6 +707,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
     marginTop: 8,
+  },
+  timeBadge: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 999,
+  },
+  timeBadgeText: {
+    color: 'rgba(0,0,0,0.7)',
+    fontSize: 11,
+    fontWeight: '400',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   chaptersPanel: {
     backgroundColor: colors.elevated,

@@ -17,12 +17,14 @@ interface EpubReaderProps {
   highlights?: { location: string; color: string }[];
   fontSize?: number;
   fontFamily?: string;
-  onProgress?: (percent: number, cfi: string) => void;
+  warmPaper?: boolean;
+  onProgress?: (percent: number, cfi: string, chapterPct: number) => void;
   onReady?: () => void;
   onError?: (msg: string) => void;
   onTapped?: () => void;
   onSelected?: (cfiRange: string, text: string) => void;
   onToc?: (chapters: TocChapter[]) => void;
+  onWordCount?: (words: number) => void;
 }
 
 export interface EpubReaderHandle {
@@ -36,7 +38,7 @@ interface TocChapter {
   depth: number;
 }
 
-export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1, fontFamily = 'system-ui', onProgress, onReady, onError, onTapped, onSelected, onToc }: EpubReaderProps, ref) {
+export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(function EpubReader({ bookId, initialCfi, data, highlights, fontSize = 1, fontFamily = 'system-ui', warmPaper = false, onProgress, onReady, onError, onTapped, onSelected, onToc, onWordCount }: EpubReaderProps, ref) {
   const webviewRef = useRef<WebView>(null);
   const readyRef = useRef(false);
   const [html, setHtml] = useState<string | null>(null);
@@ -69,6 +71,12 @@ true;`;
       `window.__setFont ? window.__setFont(${fontSize}, ${JSON.stringify(fontFamily)}) : false; true;`,
     );
   }, [fontSize, fontFamily]);
+
+  useEffect(() => {
+    webviewRef.current?.injectJavaScript(
+      `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
+    );
+  }, [warmPaper]);
 
   useEffect(() => {
     if (highlights && highlights.length > 0) {
@@ -121,6 +129,7 @@ true;`;
     var BOOK_DATA = ${data ? JSON.stringify(data) : 'null'};
     var FONT_SIZE = ${fontSize};
     var FONT_FAMILY = ${JSON.stringify(fontFamily)};
+    var WARM_PAPER = false;
     (function(){
       var loader = document.getElementById('loader');
       var tapHint = document.getElementById('tapHint');
@@ -150,6 +159,13 @@ true;`;
           manager: 'default',
         });
 
+        window.__rendition.themes.register('vellum-warm', {
+          body: {
+            'background-color': '#F5ECD7',
+            color: '#3D3226',
+          },
+        });
+
         window.__setFont = function(size, family) {
           var allIframes = document.querySelectorAll('iframe');
           for (var i = 0; i < allIframes.length; i++) {
@@ -164,6 +180,13 @@ true;`;
               }
               style.textContent = 'body { font-size: ' + (size * 100) + '% !important; font-family: ' + family + ' !important; }';
             } catch(e) {}
+          }
+        };
+
+        window.__setWarmPaper = function(enabled) {
+          WARM_PAPER = enabled;
+          if (window.__rendition && window.__rendition.themes) {
+            window.__rendition.themes.select(enabled ? 'vellum-warm' : 'default');
           }
         };
 
@@ -246,6 +269,12 @@ true;`;
               try { window.parent.ReactNativeWebView.postMessage(JSON.stringify({type: 'tapped'})); } catch(ex) {}
             }
           });
+
+          try {
+            var words = doc.body.textContent.trim().split(/\s+/).length;
+            window.__chapterWords = words;
+            post('wordcount', { words: words });
+          } catch(ex) {}
         });
 
         var totalChapters = 0;
@@ -307,6 +336,7 @@ true;`;
               post('location', {
                 index: location.start.index,
                 percentage: overallPct,
+                chapterPct: location.start.percentage,
                 cfi: location.start.cfi,
               });
             }
@@ -417,10 +447,13 @@ true;`;
       if (msg.type === 'ready' && !readyRef.current) {
         readyRef.current = true;
         onReady?.();
+        webviewRef.current?.injectJavaScript(
+          `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
+        );
       } else if (msg.type === 'location') {
         if (__DEV__) console.log('[EpubReader] location msg:', msg.percentage, msg.cfi);
         const pct = Math.round(msg.percentage * 100);
-        onProgress?.(pct, msg.cfi || '');
+        onProgress?.(pct, msg.cfi || '', msg.chapterPct ?? 0);
       } else if (msg.type === 'tapped') {
         onTapped?.();
       } else if (msg.type === 'toc') {
@@ -430,6 +463,8 @@ true;`;
         if (__DEV__) console.log('[WebView]', msg.msg);
       } else if (msg.type === 'selected') {
         onSelected?.(msg.cfiRange, msg.text);
+      } else if (msg.type === 'wordcount') {
+        onWordCount?.(msg.words);
       } else if (msg.type === 'error') {
         setError(msg.msg || 'Unknown WebView error');
         onError?.(msg.msg || 'Unknown WebView error');
@@ -439,7 +474,7 @@ true;`;
         console.warn('[EpubReader] Unparseable message:', event.nativeEvent.data);
       }
     }
-  }, [onProgress, onReady, onError, onTapped, onSelected, onToc]);
+  }, [onProgress, onReady, onError, onTapped, onSelected, onToc, onWordCount, warmPaper]);
 
   return (
     <View style={styles.container}>

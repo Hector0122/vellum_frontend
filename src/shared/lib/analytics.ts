@@ -10,7 +10,8 @@ type EventName =
   | 'note_created'
   | 'note_deleted'
   | 'reader_open'
-  | 'font_changed';
+  | 'font_changed'
+  | 'warm_paper_toggle';
 
 interface EventProperties {
   [key: string]: string | number | boolean | undefined;
