@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   bookTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.text,
   },
   bookAuthor: {
     fontSize: 13,

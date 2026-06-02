@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   text: {
-    color: colors.white,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },

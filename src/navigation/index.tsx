@@ -77,7 +77,7 @@ export function AppNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef} linking={linking}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <>

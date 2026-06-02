@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.white,
+    color: colors.text,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -514,36 +514,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    height: 46,
-    gap: 10,
-    marginBottom: 8,
+    height: 44,
+    gap: 8,
+    marginBottom: 12,
   },
   searchInput: {
     flex: 1,
-    color: colors.white,
     fontSize: 15,
+    color: colors.text,
+    padding: 0,
   },
   toolbar: {
     flexDirection: 'row',
@@ -605,7 +590,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   sortOptionTextActive: {
-    color: colors.white,
+    color: colors.accent,
     fontWeight: '600',
   },
   center: {
@@ -647,7 +632,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.text,
   },
   profileSection: {
     alignItems: 'center',
@@ -666,7 +651,7 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.text,
   },
   email: {
     fontSize: 14,

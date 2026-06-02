@@ -35,7 +35,6 @@ import {
   downloadAndCache,
 } from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
-import { useWarmPaper } from '@/shared/hooks/useWarmPaper';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
@@ -107,7 +106,6 @@ export function ReaderScreen() {
     cycleFont,
     fontLabel,
   } = useFontPrefs();
-  const { warmPaper, toggle: toggleWarmPaper } = useWarmPaper();
   const { startSession, endSession } = useReadingStats();
   const sessionIdRef = useRef<string | null>(null);
   const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } =
@@ -461,7 +459,6 @@ export function ReaderScreen() {
         data={cachedData}
         fontSize={fontSize}
         fontFamily={fontFamily}
-        warmPaper={warmPaper}
         highlights={highlightLocations}
         onProgress={handleProgress}
         onReady={handleReady}
@@ -553,25 +550,6 @@ export function ReaderScreen() {
                 onPress={trackedCycleFont}
               >
                 <Text style={styles.fontLabelText}>{fontLabel}</Text>
-              </TouchableOpacity>
-              <View style={styles.divider} />
-              <TouchableOpacity
-                style={[styles.fontBtn, warmPaper && styles.warmActive]}
-                onPress={() => {
-                  toggleWarmPaper();
-                  analytics.trackEvent('warm_paper_toggle', {
-                    enabled: !warmPaper,
-                  });
-                }}
-              >
-                <Text
-                  style={[
-                    styles.fontLabelText,
-                    warmPaper && styles.warmActiveText,
-                  ]}
-                >
-                  Warm
-                </Text>
               </TouchableOpacity>
             </View>
 
@@ -862,7 +840,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   fontBtn: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(0,0,0,0.06)',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
@@ -873,7 +851,7 @@ const styles = StyleSheet.create({
   fontBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.text,
   },
   fontSizeLabel: {
     fontSize: 13,
@@ -884,14 +862,8 @@ const styles = StyleSheet.create({
   },
   fontLabelText: {
     fontSize: 12,
-    color: colors.white,
+    color: colors.text,
     fontWeight: '600',
-  },
-  warmActive: {
-    backgroundColor: colors.accent,
-  },
-  warmActiveText: {
-    color: '#FFF8E7',
   },
   divider: {
     width: 1,
@@ -949,7 +921,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.text,
     flex: 1,
   },
   summaryText: {
@@ -976,7 +948,7 @@ const styles = StyleSheet.create({
   highlightsTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.text,
   },
   noHighlights: {
     color: colors.textMuted,
@@ -1017,7 +989,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.12)',
   },
   pickerCancel: {
     marginLeft: 'auto',
@@ -1077,7 +1049,7 @@ const styles = StyleSheet.create({
   chaptersTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.text,
   },
   chaptersList: {
     maxHeight: 200,
@@ -1091,4 +1063,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+
 });

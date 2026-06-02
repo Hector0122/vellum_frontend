@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: colors.white,
+    color: colors.text,
     fontSize: 14,
     maxHeight: 80,
   },

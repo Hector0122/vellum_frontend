@@ -24,7 +24,6 @@ interface EpubReaderProps {
   highlights?: { location: string; color: string }[];
   fontSize?: number;
   fontFamily?: string;
-  warmPaper?: boolean;
   onProgress?: (
     percent: number,
     cfi: string,
@@ -61,7 +60,6 @@ export const EpubReader = React.forwardRef<EpubReaderHandle, EpubReaderProps>(
       highlights,
       fontSize = 1,
       fontFamily = 'system-ui',
-      warmPaper = false,
       onProgress,
       onReady,
       onError,
@@ -113,15 +111,9 @@ true;`;
           fontFamily,
         )}) : false; true;`,
       );
-    }, [fontSize, fontFamily]);
+  }, [fontSize, fontFamily]);
 
-    useEffect(() => {
-      webviewRef.current?.injectJavaScript(
-        `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
-      );
-    }, [warmPaper]);
-
-    useEffect(() => {
+  useEffect(() => {
       if (highlights && highlights.length > 0) {
         const encoded = JSON.stringify(highlights);
         webviewRef.current?.injectJavaScript(
@@ -149,7 +141,7 @@ true;`;
   <script src="${EPUB_CDN}"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%;overflow:hidden;background:#FAFAFA}
+    html,body{height:100%;overflow:hidden;background:#F5ECD7}
     #viewer{width:100%;height:100%;position:relative;will-change:transform,opacity}
     #viewer.flip-out-fwd{animation:flipOutFwd 0.15s cubic-bezier(0.4,0,0.2,1) forwards}
     #viewer.flip-in-fwd{animation:flipInFwd 0.25s cubic-bezier(0.2,0.9,0.3,1.1) forwards}
@@ -174,7 +166,6 @@ true;`;
     var BOOK_DATA = ${data ? JSON.stringify(data) : 'null'};
     var FONT_SIZE = ${fontSize};
     var FONT_FAMILY = ${JSON.stringify(fontFamily)};
-    var WARM_PAPER = false;
     (function(){
       var loader = document.getElementById('loader');
       var tapHint = document.getElementById('tapHint');
@@ -204,13 +195,6 @@ true;`;
           manager: 'default',
         });
 
-        window.__rendition.themes.register('vellum-warm', {
-          body: {
-            'background-color': '#F5ECD7',
-            color: '#3D3226',
-          },
-        });
-
         window.__setFont = function(size, family) {
           var allIframes = document.querySelectorAll('iframe');
           for (var i = 0; i < allIframes.length; i++) {
@@ -225,13 +209,6 @@ true;`;
               }
               style.textContent = 'body { font-size: ' + (size * 100) + '% !important; font-family: ' + family + ' !important; }';
             } catch(e) {}
-          }
-        };
-
-        window.__setWarmPaper = function(enabled) {
-          WARM_PAPER = enabled;
-          if (window.__rendition && window.__rendition.themes) {
-            window.__rendition.themes.select(enabled ? 'vellum-warm' : 'default');
           }
         };
 
@@ -517,9 +494,6 @@ true;`;
             readyRef.current = true;
             onReady?.(msg.totalChapters ?? 0);
             webviewRef.current?.injectJavaScript(
-              `window.__setWarmPaper ? window.__setWarmPaper(${warmPaper}) : false; true;`,
-            );
-            webviewRef.current?.injectJavaScript(
               `setTimeout(function(){try{var f=document.querySelector('iframe');if(f&&f.contentDocument){var t=f.contentDocument.body.textContent||'';var w=t.trim().split(/\\s+/).filter(function(x){return x.length>0}).length;if(w>0){window.ReactNativeWebView.postMessage(JSON.stringify({type:'wordcount',words:w}))}}}catch(e){};true;},300);`,
             );
           } else if (msg.type === 'location') {
@@ -581,7 +555,6 @@ true;`;
         onToc,
         onWordCount,
         onChapterText,
-        warmPaper,
       ],
     );
 
@@ -625,7 +598,7 @@ true;`;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  webview: { flex: 1, backgroundColor: '#FAFAFA' },
+  webview: { flex: 1, backgroundColor: '#F5ECD7' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   stepText: { color: colors.textSecondary, fontSize: 14 },
   errorText: {

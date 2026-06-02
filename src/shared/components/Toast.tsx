@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   text1: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.text,
   },
   text2: {
     fontSize: 13,
