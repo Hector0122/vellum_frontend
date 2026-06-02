@@ -10,14 +10,13 @@ interface HighlightItemProps {
   item: Highlight;
   index: number;
   notes: Note[];
-  bookId: string;
   onDelete: (highlightId: string) => void;
   onSaveNote: (highlightId: string, text: string) => Promise<void>;
   onDeleteNote: (noteId: string) => void;
 }
 
 function HighlightItemInner({
-  item, index, notes, bookId, onDelete, onSaveNote, onDeleteNote,
+  item, index, notes, onDelete, onSaveNote, onDeleteNote,
 }: HighlightItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [noteText, setNoteText] = useState('');

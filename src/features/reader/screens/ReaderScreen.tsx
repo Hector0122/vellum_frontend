@@ -127,7 +127,20 @@ export function ReaderScreen() {
     analytics.trackEvent('font_changed', { direction: 'cycle' });
   }, [cycleFont]);
 
-  const book = books.find(b => b.id === bookId);
+  const book = useMemo(() => books.find(b => b.id === bookId), [books, bookId]);
+  const captureResponder = useCallback(() => true, []);
+  const absoluteFillEnd = useMemo(
+    () => ({ ...StyleSheet.absoluteFill, justifyContent: 'flex-end' as const }),
+    [],
+  );
+  const panelPadding = useMemo(
+    () => ({ paddingBottom: insets.bottom + 16 }),
+    [insets.bottom],
+  );
+  const timeBadgeStyle = useMemo(
+    () => [styles.timeBadge, { bottom: insets.bottom + 8 }],
+    [insets.bottom],
+  );
 
   useEffect(() => {
     if (!book) {
@@ -302,6 +315,61 @@ export function ReaderScreen() {
     setShowChapters(false);
   }, []);
 
+  const renderChapterItem = useCallback(
+    ({
+      item,
+    }: {
+      item: { href: string; label: string; depth: number };
+    }) => (
+      <TouchableOpacity
+        style={[styles.chapterItem, { paddingLeft: 16 + item.depth * 16 }]}
+        onPress={() => handleGoToChapter(item.href)}
+      >
+        <Text style={styles.chapterLabel} numberOfLines={1}>
+          {item.label}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [handleGoToChapter],
+  );
+
+  const renderBookmarkItem = useCallback(
+    ({ item }: { item: typeof bookmarks[number] }) => (
+      <TouchableOpacity
+        style={styles.chapterItem}
+        onPress={() => handleGoToCfi(item.cfi)}
+        onLongPress={() => {
+          Alert.alert(
+            'Delete bookmark',
+            item.label || 'Remove this bookmark?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => removeBookmark(book?.id ?? '', item.id),
+              },
+            ],
+          );
+        }}
+      >
+        <Text style={styles.chapterLabel} numberOfLines={1}>
+          {item.label || 'Bookmark'}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [handleGoToCfi, removeBookmark, book?.id],
+  );
+
+  const chaptersKeyExtractor = useCallback(
+    (_: unknown, i: number) => String(i),
+    [],
+  );
+  const bookmarksKeyExtractor = useCallback(
+    (b: { id: string }) => b.id,
+    [],
+  );
+
   const toggleOverlay = useCallback(() => {
     if (selected) {
       setSelected(null);
@@ -428,7 +496,6 @@ export function ReaderScreen() {
         item={item}
         index={index}
         notes={notesByHighlight[item.id] || []}
-        bookId={bookId}
         onDelete={handleDeleteHighlight}
         onSaveNote={handleSaveNote}
         onDeleteNote={handleDeleteNote}
@@ -436,7 +503,6 @@ export function ReaderScreen() {
     ),
     [
       notesByHighlight,
-      bookId,
       handleDeleteHighlight,
       handleSaveNote,
       handleDeleteNote,
@@ -472,7 +538,7 @@ export function ReaderScreen() {
       />
 
       {ready && (
-        <View style={[styles.timeBadge, { bottom: insets.bottom + 8 }]}>
+        <View style={timeBadgeStyle}>
           <Text style={styles.timeBadgeText}>
             {chapterWords > 0
               ? `~${timeRemaining.chapterMin}m in chap${
@@ -491,7 +557,7 @@ export function ReaderScreen() {
       )}
 
       {showOverlay && ready && (
-        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+        <View style={absoluteFillEnd}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -613,30 +679,15 @@ export function ReaderScreen() {
           <Animated.View
             entering={FadeIn.springify()}
             exiting={FadeOut}
-            style={[
-              styles.chaptersPanel,
-              { paddingBottom: insets.bottom + 16 },
-            ]}
-            onStartShouldSetResponder={() => true}
+            style={[styles.chaptersPanel, panelPadding]}
+            onStartShouldSetResponder={captureResponder}
           >
             <View style={styles.panelHandle} />
             <Text style={styles.chaptersTitle}>Chapters</Text>
             <FlatList
               data={toc}
-              keyExtractor={(_, i) => String(i)}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.chapterItem,
-                    { paddingLeft: 16 + item.depth * 16 },
-                  ]}
-                  onPress={() => handleGoToChapter(item.href)}
-                >
-                  <Text style={styles.chapterLabel} numberOfLines={1}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              keyExtractor={chaptersKeyExtractor}
+              renderItem={renderChapterItem}
               style={styles.chaptersList}
             />
           </Animated.View>
@@ -645,7 +696,7 @@ export function ReaderScreen() {
 
       {/* Bookmarks list */}
       {showBookmarks && (
-        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+        <View style={absoluteFillEnd}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -654,11 +705,8 @@ export function ReaderScreen() {
           <Animated.View
             entering={FadeIn.springify()}
             exiting={FadeOut}
-            style={[
-              styles.chaptersPanel,
-              { paddingBottom: insets.bottom + 16 },
-            ]}
-            onStartShouldSetResponder={() => true}
+            style={[styles.chaptersPanel, panelPadding]}
+            onStartShouldSetResponder={captureResponder}
           >
             <View style={styles.panelHandle} />
             <Text style={styles.chaptersTitle}>Bookmarks</Text>
@@ -667,31 +715,8 @@ export function ReaderScreen() {
             ) : (
               <FlatList
                 data={bookmarks}
-                keyExtractor={b => b.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.chapterItem}
-                    onPress={() => handleGoToCfi(item.cfi)}
-                    onLongPress={() => {
-                      Alert.alert(
-                        'Delete bookmark',
-                        item.label || 'Remove this bookmark?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: () => removeBookmark(book.id, item.id),
-                          },
-                        ],
-                      );
-                    }}
-                  >
-                    <Text style={styles.chapterLabel} numberOfLines={1}>
-                      {item.label || `Page ${bookmarks.indexOf(item) + 1}`}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                keyExtractor={bookmarksKeyExtractor}
+                renderItem={renderBookmarkItem}
                 style={styles.chaptersList}
               />
             )}
@@ -701,7 +726,7 @@ export function ReaderScreen() {
 
       {/* AI Summary */}
       {showSummary && summary && (
-        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+        <View style={absoluteFillEnd}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -710,11 +735,8 @@ export function ReaderScreen() {
           <Animated.View
             entering={FadeIn.springify()}
             exiting={FadeOut}
-            style={[
-              styles.summaryPanel,
-              { paddingBottom: insets.bottom + 16 },
-            ]}
-            onStartShouldSetResponder={() => true}
+            style={[styles.summaryPanel, panelPadding]}
+            onStartShouldSetResponder={captureResponder}
           >
             <View style={styles.panelHandle} />
             <View style={styles.summaryHeader}>
@@ -795,11 +817,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  overlayBackdrop: {
-    ...StyleSheet.absoluteFill,
-    justifyContent: 'flex-end',
-    zIndex: 10,
   },
   overlayPanel: {
     backgroundColor: colors.elevated,
@@ -971,39 +988,12 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 40,
   },
-  pickerContainer: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-  },
-  pickerTitle: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   colorDot: {
     width: 32,
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: 'rgba(0,0,0,0.12)',
-  },
-  pickerCancel: {
-    marginLeft: 'auto',
   },
   pickerCancelText: {
     color: colors.textMuted,

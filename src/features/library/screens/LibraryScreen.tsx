@@ -67,7 +67,7 @@ export function LibraryScreen() {
   const [sort, setSort] = useState<SortMode>('last');
   const [showSort, setShowSort] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const { streak, todayMinutes, streakChanged, fetchStreak } =
+  const { streak, streakChanged, fetchStreak } =
     useReadingStats();
   const flameScale = useRef(new Animated.Value(1)).current;
 

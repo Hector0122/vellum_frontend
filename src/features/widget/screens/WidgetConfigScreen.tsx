@@ -19,10 +19,6 @@ import { showToast } from '@/shared/components/Toast';
 import { colors } from '@/shared/theme/colors';
 import type { Book, Highlight } from '@/types';
 
-interface BookWithHighlights extends Book {
-  highlightsCount: number;
-}
-
 export function WidgetConfigScreen() {
   const navigation = useNavigation();
   const { books, fetchBooks, loading } = useLibraryStore();

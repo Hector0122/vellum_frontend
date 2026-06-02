@@ -117,7 +117,6 @@ export function HighlightsScreen() {
           item={h}
           index={idx}
           notes={notesByHighlight[h.id] || []}
-          bookId={bookId}
           onDelete={handleDeleteHighlight}
           onSaveNote={handleSaveNote}
           onDeleteNote={handleDeleteNote}

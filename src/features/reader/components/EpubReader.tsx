@@ -103,7 +103,7 @@ true;`;
           `try{var f=document.querySelector('iframe');var t=f&&f.contentDocument?f.contentDocument.body.textContent||'':'';window.ReactNativeWebView.postMessage(JSON.stringify({type:'chapterText',text:t.slice(0,15000)}))}catch(e){window.ReactNativeWebView.postMessage(JSON.stringify({type:'chapterText',text:''}))};true;`,
         );
       },
-    }));
+    }), []);
 
     useEffect(() => {
       webviewRef.current?.injectJavaScript(
@@ -533,14 +533,10 @@ true;`;
             onError?.(msg.msg || 'Unknown WebView error');
           }
         } catch (err: any) {
-          console.warn(
-            '[EpubReader] Failed to parse message:',
-            err,
-            event.nativeEvent.data,
-          );
           if (__DEV__) {
             console.warn(
-              '[EpubReader] Unparseable message:',
+              '[EpubReader] Failed to parse message:',
+              err,
               event.nativeEvent.data,
             );
           }
