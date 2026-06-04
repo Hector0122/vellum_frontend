@@ -45,6 +45,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+export function isNetworkError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes('network') ||
+      msg.includes('fetch') ||
+      msg.includes('timeout') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('network request failed') ||
+      msg.includes('internet') ||
+      msg.includes('connection')
+    );
+  }
+  return false;
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
 

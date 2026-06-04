@@ -42,8 +42,10 @@ import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { api } from '@/shared/lib/api';
 import { showToast } from '@/shared/components/Toast';
 import { useReadingStats } from '@/shared/hooks/useReadingStats';
+import { useSyncQueueStore } from '@/stores/syncQueueStore';
 import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList } from '@/types';
+import NetInfo from '@react-native-community/netinfo';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
 
@@ -90,6 +92,7 @@ export function ReaderScreen() {
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const currentChapterIndexRef = useRef(0);
   const epubRef = useRef<EpubReaderHandle>(null);
   const currentCfiRef = useRef('');
@@ -111,6 +114,7 @@ export function ReaderScreen() {
   const sessionIdRef = useRef<string | null>(null);
   const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } =
     useBookmarkStore();
+  const { queue: syncQueue } = useSyncQueueStore();
 
   const trackedIncrease = useCallback(() => {
     increaseSize();
@@ -147,6 +151,13 @@ export function ReaderScreen() {
       navigation.goBack();
     }
   }, [book, navigation]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsConnected(!!state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     fetchHighlights(bookId);
@@ -536,6 +547,14 @@ export function ReaderScreen() {
         onWordCount={handleWordCount}
         onChapterText={handleChapterText}
       />
+
+      {(!isConnected || syncQueue.length > 0) && (
+        <View style={[styles.statusBadge, { top: insets.top + 8 }]}>
+          <Text style={styles.statusBadgeText}>
+            {!isConnected ? 'Offline' : `${syncQueue.length} pending`}
+          </Text>
+        </View>
+      )}
 
       {ready && (
         <View style={timeBadgeStyle}>
@@ -1016,6 +1035,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
     marginTop: 8,
+  },
+  statusBadge: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 999,
+    elevation: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   timeBadge: {
     position: 'absolute',

@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { api } from '@/shared/lib/api';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { api, isNetworkError } from '@/shared/lib/api';
+import { useSyncQueueStore } from '@/stores/syncQueueStore';
 import type { Book } from '@/types';
 
 interface BooksResponse {
@@ -18,44 +21,62 @@ interface LibraryState {
   updateProgress: (bookId: string, progress: number, cfi?: string) => Promise<void>;
 }
 
-export const useLibraryStore = create<LibraryState>((set, get) => ({
-  books: [],
-  loading: false,
+export const useLibraryStore = create<LibraryState>()(
+  persist(
+    (set, get) => ({
+      books: [],
+      loading: false,
 
-  fetchBooks: async () => {
-    set({ loading: true });
-    try {
-      const data = await api.get<BooksResponse>('/api/books');
-      set({ books: data.books, loading: false });
-    } catch {
-      set({ loading: false });
-    }
-  },
+      fetchBooks: async () => {
+        set({ loading: true });
+        try {
+          const data = await api.get<BooksResponse>('/api/books');
+          set({ books: data.books, loading: false });
+        } catch {
+          // If fetch fails, keep existing persisted books in state
+          set({ loading: false });
+        }
+      },
 
-  deleteBook: async (bookId: string) => {
-    await api.delete(`/api/books/${bookId}`);
-    const { books } = get();
-    set({ books: books.filter((b) => b.id !== bookId) });
-  },
+      deleteBook: async (bookId: string) => {
+        await api.delete(`/api/books/${bookId}`);
+        const { books } = get();
+        set({ books: books.filter((b) => b.id !== bookId) });
+      },
 
-  updateProgress: async (bookId: string, progress: number, cfi?: string) => {
-    if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, cfi);
-    try {
-      await api.patch<BookResponse>(`/api/books/${bookId}`, {
-        progress_percent: progress,
-        progress_cfi: cfi ?? null,
-        last_opened_at: new Date().toISOString(),
-      });
-    } catch (e) {
-      if (__DEV__) console.warn('[libraryStore] PATCH failed:', e);
-      return;
-    }
+      updateProgress: async (bookId: string, progress: number, cfi?: string) => {
+        if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, cfi);
 
-    const { books } = get();
-    set({
-      books: books.map((b) =>
-        b.id === bookId ? { ...b, progress_percent: progress, progress_cfi: cfi } : b,
-      ),
-    });
-  },
-}));
+        // Optimistic update
+        const { books } = get();
+        set({
+          books: books.map((b) =>
+            b.id === bookId
+              ? { ...b, progress_percent: progress, progress_cfi: cfi, last_opened_at: new Date().toISOString() }
+              : b,
+          ),
+        });
+
+        try {
+          await api.patch<BookResponse>(`/api/books/${bookId}`, {
+            progress_percent: progress,
+            progress_cfi: cfi ?? null,
+            last_opened_at: new Date().toISOString(),
+          });
+        } catch (e) {
+          if (__DEV__) console.warn('[libraryStore] PATCH failed, queued:', e);
+          if (isNetworkError(e)) {
+            useSyncQueueStore.getState().add({
+              type: 'UPDATE_PROGRESS',
+              payload: { bookId, progress, cfi },
+            });
+          }
+        }
+      },
+    }),
+    {
+      name: 'vellum-library',
+      storage: createJSONStorage(() => AsyncStorage),
+    },
+  ),
+);

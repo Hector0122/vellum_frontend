@@ -56,8 +56,8 @@ export function ForgotPasswordScreen({ navigation }: Props) {
           {sent ? (
             <View style={styles.sentContainer}>
               <Text style={styles.sentText}>
-                If an account exists for {email}, you'll receive a password reset
-                link shortly.
+                If an account exists for {email}, you'll receive a password
+                reset link shortly.
               </Text>
               <Button
                 title="Back to Sign In"

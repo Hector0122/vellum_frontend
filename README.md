@@ -119,6 +119,8 @@ Book {
 - Font customization (A-/A+ size, System/Serif/Sans/Mono family)
 - Local EPUB cache for offline reading
 - Animated highlights and color picker (Reanimated)
+- Bookmarks with quick navigation
+- Estimated reading time per chapter & book (adaptive WPM)
 
 ---
 
@@ -169,6 +171,50 @@ Use:
 - thoughts
 - summaries
 - study notes
+
+---
+
+# 🔖 Bookmarks
+
+Save specific locations in a book for quick return.
+
+- Add bookmark at current location (CFI)
+- Navigate to bookmark from overlay list
+- Delete with long-press
+
+---
+
+# 📊 Reading Stats
+
+Track reading habits and streaks.
+
+- Reading sessions (start/end tracking)
+- Daily reading streak with flame indicator
+- Total reading time per book
+- Sessions discarded if under 5 minutes
+
+---
+
+# 🤖 AI Summaries
+
+Generate chapter summaries on demand.
+
+- Extract chapter text automatically
+- Groq (Llama 3.1) as primary provider
+- Gemini 2.0 Flash as fallback
+- Results cached per chapter in database
+- Displayed as bullet points in reader overlay
+
+---
+
+# 📱 Widget (Android)
+
+Home screen widget with book highlights carousel.
+
+- Select book to display
+- Auto-rotates highlights every 5 seconds
+- Deep link to reader (`vellum://reader/:bookId`)
+- Book selection config screen in app
 
 ---
 
@@ -301,11 +347,13 @@ Private bucket. Access via backend proxy with signed URLs.
 - user info (name, email)
 - logout
 
-## Highlight/Notes (pendiente)
+## Highlights & Notes
 
 - select text and save highlight
 - add note to highlight
 - list notes
+- 5 highlight colors with visual rendering
+- global highlights screen grouped by book
 
 ---
 
@@ -320,22 +368,14 @@ Private bucket. Access via backend proxy with signed URLs.
 - highlights & notes (create, list, delete, notes per highlight)
 - animations (Reanimated: FAB spring, fade-in items, color picker)
 
-## 🔄 Phase 2 — In progress
+## ✅ Phase 2 — Done
 
 - lazy loading & performance optimizations
 - analytics & haptic feedback
-
----
-
-# 🌱 Future
-
-Later:
-
-- OCR
-- AI summaries
-- semantic search
-- flashcards
-- export notes
+- reading stats & streaks tracking
+- estimated reading time (adaptive WPM)
+- Android home screen widget with carousel
+- AI chapter summaries (Groq + Gemini fallback)
 
 ---
 
