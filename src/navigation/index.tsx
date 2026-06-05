@@ -10,6 +10,8 @@ import { LibraryScreen } from '@/features/library/screens/LibraryScreen';
 import { HighlightsScreen } from '@/features/library/screens/HighlightsScreen';
 import { ReaderScreen } from '@/features/reader/screens/ReaderScreen';
 import { WidgetConfigScreen } from '@/features/widget/screens/WidgetConfigScreen';
+import { DiscoverScreen } from '@/features/discover/screens/DiscoverScreen';
+import { WishlistScreen } from '@/features/discover/screens/WishlistScreen';
 import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList, AuthStackParamList } from '@/types';
 
@@ -84,6 +86,8 @@ export function AppNavigator() {
             <RootStack.Screen name="Main" component={LibraryScreen} />
             <RootStack.Screen name="Highlights" component={HighlightsScreen} />
             <RootStack.Screen name="WidgetConfig" component={WidgetConfigScreen} />
+            <RootStack.Screen name="Discover" component={DiscoverScreen} />
+            <RootStack.Screen name="Wishlist" component={WishlistScreen} />
             <RootStack.Screen
               name="Reader"
               component={ReaderScreen}

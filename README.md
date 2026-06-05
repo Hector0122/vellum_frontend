@@ -82,6 +82,8 @@ Book {
   cover_url
   file_url
   file_type
+  status        // unread | reading | read (auto-read at 100%)
+  genres        // string[] extracted by AI
   progress_percent
   progress_cfi
   last_opened_at
@@ -92,7 +94,9 @@ Book {
 ### Features
 
 - Search local by title/author
-- Filters: All / Reading / Unread
+- Filters: All / Reading / Unread / Read
+- Auto-mark as read at 100% progress
+- Genre tags visible on each book (AI-extracted, normalized catalog)
 - Sort: Recent, A—Z, Progress, Added
 - Long-press to delete
 - Pull-to-refresh

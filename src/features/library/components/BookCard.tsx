@@ -30,10 +30,26 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
           </View>
         )}
         <View style={styles.bookInfo}>
-          <Text style={styles.bookTitle} numberOfLines={1}>
-            {item.title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.bookTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {item.status === 'read' && (
+              <View style={styles.readBadge}>
+                <Icon name="check-circle" size={14} color={colors.success || '#10B981'} />
+              </View>
+            )}
+          </View>
           {item.author && <Text style={styles.bookAuthor}>{item.author}</Text>}
+          {item.genres && item.genres.length > 0 && (
+            <View style={styles.genreRow}>
+              {item.genres.slice(0, 3).map((g) => (
+                <View key={g} style={styles.genreChip}>
+                  <Text style={styles.genreText}>{g}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           <View style={styles.progressRow}>
             <View style={styles.progressBar}>
               <View
@@ -84,14 +100,40 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   bookTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
+    flex: 1,
+  },
+  readBadge: {
+    marginLeft: 2,
   },
   bookAuthor: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  genreRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  genreChip: {
+    backgroundColor: 'rgba(108,99,255,0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  genreText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.accent,
   },
   progressRow: {
     flexDirection: 'row',

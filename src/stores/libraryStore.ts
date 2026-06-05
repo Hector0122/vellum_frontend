@@ -47,12 +47,14 @@ export const useLibraryStore = create<LibraryState>()(
       updateProgress: async (bookId: string, progress: number, cfi?: string) => {
         if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, cfi);
 
+        const newStatus = progress >= 100 ? 'read' : 'reading';
+
         // Optimistic update
         const { books } = get();
         set({
           books: books.map((b) =>
             b.id === bookId
-              ? { ...b, progress_percent: progress, progress_cfi: cfi, last_opened_at: new Date().toISOString() }
+              ? { ...b, progress_percent: progress, progress_cfi: cfi, status: newStatus, last_opened_at: new Date().toISOString() }
               : b,
           ),
         });
@@ -61,6 +63,7 @@ export const useLibraryStore = create<LibraryState>()(
           await api.patch<BookResponse>(`/api/books/${bookId}`, {
             progress_percent: progress,
             progress_cfi: cfi ?? null,
+            status: newStatus,
             last_opened_at: new Date().toISOString(),
           });
         } catch (e) {

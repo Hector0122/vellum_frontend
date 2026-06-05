@@ -38,7 +38,7 @@ interface UploadResponse {
   objectKey: string;
 }
 
-type FilterMode = 'all' | 'reading' | 'unread';
+type FilterMode = 'all' | 'reading' | 'unread' | 'read';
 type SortMode = 'last' | 'az' | 'progress' | 'added';
 
 const SORT_LABELS: Record<SortMode, string> = {
@@ -112,6 +112,8 @@ export function LibraryScreen() {
       );
     } else if (filter === 'unread') {
       result = result.filter(b => b.progress_percent === 0);
+    } else if (filter === 'read') {
+      result = result.filter(b => b.status === 'read');
     }
 
     switch (sort) {
@@ -150,6 +152,19 @@ export function LibraryScreen() {
       if (!file.name) return;
       const fileType = file.type?.includes('pdf') ? 'pdf' : 'epub';
       const title = file.name.replace(/\.(epub|pdf)$/i, '');
+
+      // Check for duplicate title
+      const duplicate = useLibraryStore.getState().books.find(
+        (b) => b.title.toLowerCase() === title.toLowerCase(),
+      );
+      if (duplicate) {
+        Alert.alert(
+          'Libro duplicado',
+          `Ya tienes "${duplicate.title}" en tu biblioteca.`,
+          [{ text: 'OK' }],
+        );
+        return;
+      }
 
       setUploading(true);
 
@@ -270,6 +285,18 @@ export function LibraryScreen() {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.headerBtn}
+                onPress={() => navigation.navigate('Discover')}
+              >
+                <Icon name="compass-outline" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerBtn}
+                onPress={() => navigation.navigate('Wishlist')}
+              >
+                <Icon name="bookmark-multiple-outline" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerBtn}
                 onPress={() => navigation.navigate('WidgetConfig')}
               >
                 <Icon name="widget-outline" size={24} color={colors.textSecondary} />
@@ -310,7 +337,7 @@ export function LibraryScreen() {
           {/* Filters + Sort */}
           <View style={styles.toolbar}>
             <View style={styles.filterRow}>
-              {(['all', 'reading', 'unread'] as FilterMode[]).map(f => (
+              {(['all', 'reading', 'unread', 'read'] as FilterMode[]).map(f => (
                 <TouchableOpacity
                   key={f}
                   style={[styles.chip, filter === f && styles.chipActive]}
@@ -326,7 +353,9 @@ export function LibraryScreen() {
                       ? 'All'
                       : f === 'reading'
                       ? 'Reading'
-                      : 'Unread'}
+                      : f === 'unread'
+                      ? 'Unread'
+                      : 'Read'}
                   </Text>
                 </TouchableOpacity>
               ))}

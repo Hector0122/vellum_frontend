@@ -15,9 +15,25 @@ export interface Book {
   cover_url?: string;
   file_url: string;
   file_type: 'epub' | 'pdf';
+  status: 'unread' | 'reading' | 'read';
+  genres: string[];
   progress_percent: number;
   progress_cfi?: string | null;
   last_opened_at?: string;
+  created_at: string;
+}
+
+export interface BookSuggestion {
+  id: string;
+  user_id: string;
+  title: string;
+  author?: string;
+  synopsis?: string;
+  reason?: string;
+  genres: string[];
+  source_books: string[];
+  status: 'suggested' | 'want_to_read' | 'dismissed';
+  expires_at: string;
   created_at: string;
 }
 
@@ -47,6 +63,8 @@ export type RootStackParamList = {
   Main: undefined;
   Highlights: undefined;
   WidgetConfig: undefined;
+  Discover: undefined;
+  Wishlist: undefined;
   Reader: { bookId: string };
 };
 
