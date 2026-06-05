@@ -252,6 +252,15 @@ App → epub.js renders in WebView
 App → PATCH /api/books/:id → save progress + CFI
 ```
 
+## Delete flow
+
+```
+App → long-press → confirm → DELETE /api/books/:id
+Backend → delete EPUB from R2
+Backend → delete cover from R2
+Backend → delete DB record + associated highlights, notes, bookmarks
+```
+
 ---
 
 # 🗄️ Database
@@ -277,6 +286,8 @@ description
 cover_url
 file_url
 file_type
+status       // unread | reading | read
+genres       // string[] catálogo controlado
 progress_percent
 progress_cfi
 last_opened_at
@@ -306,6 +317,22 @@ content
 created_at
 ```
 
+## book_suggestions
+
+```sql
+id
+user_id
+title
+author
+synopsis
+reason       // por qué se recomendó
+genres       // string[] catálogo controlado
+source_books // string[] libros leídos del usuario
+status       // suggested | want_to_read | dismissed
+expires_at   // TTL 24h
+created_at
+```
+
 ---
 
 # 🔐 Security
@@ -332,12 +359,16 @@ Private bucket. Access via backend proxy with signed URLs.
 ## Library
 
 - search bar
-- filter chips (All / Reading / Unread)
+- filter chips (All / Reading / Unread / Read)
 - sort dropdown (Recent, A—Z, Progress, Added)
 - uploaded books list
 - upload button
 - long-press delete
 - pull-to-refresh
+- auto-mark as read at 100% progress
+- genre tags on books (AI-extracted)
+- duplicate detection on upload
+- icons: Widget, Highlights, Discover, Wishlist, Profile
 
 ## Reader
 
@@ -350,6 +381,18 @@ Private bucket. Access via backend proxy with signed URLs.
 
 - user info (name, email)
 - logout
+
+## Discover
+- AI-generated book recommendations
+- button in Library header (compass icon)
+- 2-3 recommendations based on all read books
+- save as "Want to read" or dismiss
+- TTL 24h on suggestions
+
+## Wishlist
+- saved "Want to read" books
+- accessible from bookmark icon in Library header
+- mark as completed or remove
 
 ## Highlights & Notes
 
@@ -380,6 +423,16 @@ Private bucket. Access via backend proxy with signed URLs.
 - estimated reading time (adaptive WPM)
 - Android home screen widget with carousel
 - AI chapter summaries (Groq + Gemini fallback)
+
+## ✅ Phase 3 — Done
+
+- AI book recommendations (Discover — analyze read books, suggest 2-3 new ones)
+- genre extraction per book (normalized catalog of 15 genres)
+- "Want to read" wishlist
+- auto-mark books as "read" at 100% progress
+- duplicate book detection on upload
+- R2 file cleanup on book deletion + orphaned objects cleanup endpoint
+- app renamed from "VellumFrontend" to "Vellum"
 
 ---
 
