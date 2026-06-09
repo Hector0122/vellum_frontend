@@ -5,6 +5,8 @@ type EventName =
   | 'book_open'
   | 'book_upload'
   | 'book_delete'
+  | 'book_mark_read'
+  | 'book_update_pages'
   | 'highlight_created'
   | 'highlight_deleted'
   | 'note_created'

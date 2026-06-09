@@ -65,6 +65,11 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
                 : '—'}
             </Text>
           </View>
+          {item.total_pages != null && item.total_pages > 0 && (
+            <Text style={styles.pageText}>
+              Pág. {item.current_page} / {item.total_pages}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     </AnimatedListItem>
@@ -159,5 +164,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     minWidth: 32,
     textAlign: 'right',
+  },
+  pageText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

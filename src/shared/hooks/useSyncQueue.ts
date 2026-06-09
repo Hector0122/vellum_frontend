@@ -30,14 +30,18 @@ async function processOperation(op: SyncOperation): Promise<boolean> {
   try {
     switch (op.type) {
       case 'UPDATE_PROGRESS': {
-        const { bookId, progress, cfi } = op.payload as {
+        const { bookId, progress, cfi, currentPage, totalPages } = op.payload as {
           bookId: string;
           progress: number;
           cfi?: string;
+          currentPage?: number;
+          totalPages?: number;
         };
         await api.patch(`/api/books/${bookId}`, {
           progress_percent: progress,
           progress_cfi: cfi ?? null,
+          current_page: currentPage,
+          total_pages: totalPages,
           last_opened_at: new Date().toISOString(),
         });
         return true;

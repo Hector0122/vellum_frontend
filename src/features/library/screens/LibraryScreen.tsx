@@ -58,7 +58,7 @@ const FLATLIST_CONFIG = {
 export function LibraryScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { books, loading, fetchBooks, deleteBook } = useLibraryStore();
+  const { books, loading, fetchBooks, deleteBook, markAsRead, updatePages } = useLibraryStore();
   const { user, signOut } = useAuthStore();
 
   const [uploading, setUploading] = useState(false);
@@ -67,6 +67,11 @@ export function LibraryScreen() {
   const [sort, setSort] = useState<SortMode>('last');
   const [showSort, setShowSort] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [contextBook, setContextBook] = useState<Book | null>(null);
+  const [showContext, setShowContext] = useState(false);
+  const [showEditPages, setShowEditPages] = useState(false);
+  const [editCurrentPage, setEditCurrentPage] = useState('');
+  const [editTotalPages, setEditTotalPages] = useState('');
   const { streak, streakChanged, fetchStreak } =
     useReadingStats();
   const flameScale = useRef(new Animated.Value(1)).current;
@@ -214,26 +219,70 @@ export function LibraryScreen() {
     navigation.navigate('Reader', { bookId: book.id });
   }, [navigation]);
 
-  const handleDeleteBook = useCallback((book: Book) => {
+  const handleContextMenu = useCallback((book: Book) => {
     hapticLight();
-    Alert.alert('Delete book', `Remove "${book.title}" from your library?`, [
+    setContextBook(book);
+    setShowContext(true);
+  }, []);
+
+  const handleMarkAsRead = useCallback(async () => {
+    if (!contextBook) return;
+    setShowContext(false);
+    try {
+      await markAsRead(contextBook.id);
+      hapticSuccess();
+      showToast('success', 'Marked as read', `"${contextBook.title}" marcado como leído`);
+      analytics.trackEvent('book_mark_read', { book_id: contextBook.id });
+    } catch (err: any) {
+      showToast('error', 'Error', err.message);
+    }
+  }, [contextBook, markAsRead]);
+
+  const handleOpenEditPages = useCallback(() => {
+    if (!contextBook) return;
+    setShowContext(false);
+    setEditCurrentPage(String(contextBook.current_page || 0));
+    setEditTotalPages(String(contextBook.total_pages || ''));
+    setShowEditPages(true);
+  }, [contextBook]);
+
+  const handleSavePages = useCallback(async () => {
+    if (!contextBook) return;
+    const currentPage = parseInt(editCurrentPage, 10) || 0;
+    const totalPages = editTotalPages ? parseInt(editTotalPages, 10) || 0 : undefined;
+    try {
+      await updatePages(contextBook.id, currentPage, totalPages);
+      setShowEditPages(false);
+      hapticSuccess();
+      showToast('success', 'Pages updated');
+      analytics.trackEvent('book_update_pages', { book_id: contextBook.id });
+    } catch (err: any) {
+      showToast('error', 'Error', err.message);
+    }
+  }, [contextBook, editCurrentPage, editTotalPages, updatePages]);
+
+  const handleDeleteFromMenu = useCallback(async () => {
+    if (!contextBook) return;
+    setShowContext(false);
+    hapticLight();
+    Alert.alert('Delete book', `Remove "${contextBook.title}" from your library?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteBook(book.id);
-            removeCachedEpub(book.id);
-            showToast('info', 'Book deleted', `"${book.title}" removed`);
-            analytics.trackEvent('book_delete', { book_id: book.id });
+            await deleteBook(contextBook.id);
+            removeCachedEpub(contextBook.id);
+            showToast('info', 'Book deleted', `"${contextBook.title}" removed`);
+            analytics.trackEvent('book_delete', { book_id: contextBook.id });
           } catch (err: any) {
             showToast('error', 'Error', err.message);
           }
         },
       },
     ]);
-  }, [deleteBook]);
+  }, [contextBook, deleteBook]);
 
   const handleLogout = useCallback(() => {
     Alert.alert('Log out', 'Are you sure?', [
@@ -252,10 +301,10 @@ export function LibraryScreen() {
         item={item}
         index={index}
         onPress={handleBookPress}
-        onLongPress={handleDeleteBook}
+        onLongPress={handleContextMenu}
       />
     ),
-    [handleBookPress, handleDeleteBook],
+    [handleBookPress, handleContextMenu],
   );
 
   return (
@@ -487,6 +536,96 @@ export function LibraryScreen() {
             </View>
           </SafeAreaView>
         </Modal>
+
+        {/* Context Menu Modal */}
+        <Modal
+          visible={showContext}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowContext(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowContext(false)}
+          >
+            <View style={styles.contextMenu}>
+              {contextBook && contextBook.status !== 'read' && (
+                <TouchableOpacity style={styles.contextOption} onPress={handleMarkAsRead}>
+                  <Icon name="check-circle-outline" size={22} color="#10B981" />
+                  <Text style={styles.contextOptionText}>Marcar como leído</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.contextOption} onPress={handleOpenEditPages}>
+                <Icon name="book-open-page-variant-outline" size={22} color={colors.accent} />
+                <Text style={styles.contextOptionText}>Editar páginas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.contextOption} onPress={handleDeleteFromMenu}>
+                <Icon name="delete-outline" size={22} color={colors.destructive} />
+                <Text style={[styles.contextOptionText, { color: colors.destructive }]}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Edit Pages Modal */}
+        <Modal
+          visible={showEditPages}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowEditPages(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowEditPages(false)}
+          >
+            <View style={styles.pagesModal} onStartShouldSetResponder={() => true}>
+              <Text style={styles.pagesModalTitle}>Editar páginas</Text>
+              {contextBook && (
+                <Text style={styles.pagesModalSubtitle}>{contextBook.title}</Text>
+              )}
+
+              <View style={styles.pagesInputRow}>
+                <View style={styles.pagesInputGroup}>
+                  <Text style={styles.pagesLabel}>Página actual</Text>
+                  <TextInput
+                    style={styles.pagesInput}
+                    value={editCurrentPage}
+                    onChangeText={setEditCurrentPage}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
+                <Text style={styles.pagesSeparator}>/</Text>
+                <View style={styles.pagesInputGroup}>
+                  <Text style={styles.pagesLabel}>Total páginas</Text>
+                  <TextInput
+                    style={styles.pagesInput}
+                    value={editTotalPages}
+                    onChangeText={setEditTotalPages}
+                    keyboardType="number-pad"
+                    placeholder="—"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.pagesActions}>
+                <TouchableOpacity
+                  style={styles.pagesCancelBtn}
+                  onPress={() => setShowEditPages(false)}
+                >
+                  <Text style={styles.pagesCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.pagesSaveBtn} onPress={handleSavePages}>
+                  <Text style={styles.pagesSaveText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </SafeAreaView>
     </AnimatedScreen>
   );
@@ -700,5 +839,110 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.destructive,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  contextMenu: {
+    backgroundColor: colors.elevated,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
+    gap: 4,
+  },
+  contextOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  contextOptionText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  pagesModal: {
+    backgroundColor: colors.elevated,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  pagesModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  pagesModalSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 20,
+  },
+  pagesInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    marginBottom: 24,
+  },
+  pagesInputGroup: {
+    flex: 1,
+  },
+  pagesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  pagesInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  pagesSeparator: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textMuted,
+    paddingBottom: 12,
+  },
+  pagesActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pagesCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  pagesCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  pagesSaveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+  },
+  pagesSaveText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.white,
   },
 });

@@ -19,6 +19,8 @@ export interface Book {
   genres: string[];
   progress_percent: number;
   progress_cfi?: string | null;
+  current_page: number;
+  total_pages?: number | null;
   last_opened_at?: string;
   created_at: string;
 }
