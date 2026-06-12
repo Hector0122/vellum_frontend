@@ -29,6 +29,8 @@ interface EpubReaderProps {
     cfi: string,
     chapterPct: number,
     chapterIndex: number,
+    displayedPage?: number,
+    totalPages?: number,
   ) => void;
   onReady?: (totalChapters: number) => void;
   onError?: (msg: string) => void;
@@ -360,6 +362,8 @@ true;`;
                 percentage: overallPct,
                 chapterPct: location.start.percentage,
                 cfi: location.start.cfi,
+                displayedPage: location.start.displayed ? location.start.displayed.page : 0,
+                totalPages: location.start.displayed ? location.start.displayed.total : 0,
               });
 
               try {
@@ -494,6 +498,9 @@ true;`;
             readyRef.current = true;
             onReady?.(msg.totalChapters ?? 0);
             webviewRef.current?.injectJavaScript(
+              `window.__setFont && window.__setFont(${fontSize}, ${JSON.stringify(fontFamily)}); true;`,
+            );
+            webviewRef.current?.injectJavaScript(
               `setTimeout(function(){try{var f=document.querySelector('iframe');if(f&&f.contentDocument){var t=f.contentDocument.body.textContent||'';var w=t.trim().split(/\\s+/).filter(function(x){return x.length>0}).length;if(w>0){window.ReactNativeWebView.postMessage(JSON.stringify({type:'wordcount',words:w}))}}}catch(e){};true;},300);`,
             );
           } else if (msg.type === 'location') {
@@ -509,6 +516,8 @@ true;`;
               msg.cfi || '',
               msg.chapterPct ?? 0,
               msg.index ?? 0,
+              msg.displayedPage ?? 0,
+              msg.totalPages ?? 0,
             );
           } else if (msg.type === 'tapped') {
             onTapped?.();
@@ -551,6 +560,8 @@ true;`;
         onToc,
         onWordCount,
         onChapterText,
+        fontSize,
+        fontFamily,
       ],
     );
 

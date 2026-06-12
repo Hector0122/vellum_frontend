@@ -88,6 +88,8 @@ export function ReaderScreen() {
   const [chapterPct, setChapterPct] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
   const [totalChapters, setTotalChapters] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [wpm, setWpm] = useState(200);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -109,6 +111,7 @@ export function ReaderScreen() {
     decreaseSize,
     cycleFont,
     fontLabel,
+    loaded: fontPrefsLoaded,
   } = useFontPrefs();
   const { startSession, endSession } = useReadingStats();
   const sessionIdRef = useRef<string | null>(null);
@@ -141,8 +144,12 @@ export function ReaderScreen() {
     () => ({ paddingBottom: insets.bottom + 16 }),
     [insets.bottom],
   );
-  const timeBadgeStyle = useMemo(
-    () => [styles.timeBadge, { bottom: insets.bottom + 8 }],
+  const pageBadgeStyle = useMemo(
+    () => [styles.pageBadge, { bottom: insets.bottom + 8 }],
+    [insets.bottom],
+  );
+  const timeBadgeLeftStyle = useMemo(
+    () => [styles.timeBadgeLeft, { bottom: insets.bottom + 8 }],
     [insets.bottom],
   );
 
@@ -198,10 +205,12 @@ export function ReaderScreen() {
   }, [bookId]);
 
   const handleProgress = useCallback(
-    (percent: number, cfi: string, chapPct: number, chapterIndex: number) => {
+    (percent: number, cfi: string, chapPct: number, chapterIndex: number, displayedPage?: number, total?: number) => {
       currentCfiRef.current = cfi;
       setChapterPct(chapPct);
       setOverallProgress(percent);
+      if (displayedPage !== undefined) setCurrentPage(displayedPage);
+      if (total !== undefined) setTotalPages(total);
 
       const prevIndex = lastChapterIndexRef.current;
       if (chapterIndex !== prevIndex && prevIndex !== -1) {
@@ -530,23 +539,25 @@ export function ReaderScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <EpubReader
-        ref={epubRef}
-        bookId={book.id}
-        initialCfi={book.progress_cfi}
-        data={cachedData}
-        fontSize={fontSize}
-        fontFamily={fontFamily}
-        highlights={highlightLocations}
-        onProgress={handleProgress}
-        onReady={handleReady}
-        onError={handleReaderError}
-        onTapped={toggleOverlay}
-        onSelected={handleSelected}
-        onToc={handleToc}
-        onWordCount={handleWordCount}
-        onChapterText={handleChapterText}
-      />
+      {fontPrefsLoaded && (
+        <EpubReader
+          ref={epubRef}
+          bookId={book.id}
+          initialCfi={book.progress_cfi}
+          data={cachedData}
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          highlights={highlightLocations}
+          onProgress={handleProgress}
+          onReady={handleReady}
+          onError={handleReaderError}
+          onTapped={toggleOverlay}
+          onSelected={handleSelected}
+          onToc={handleToc}
+          onWordCount={handleWordCount}
+          onChapterText={handleChapterText}
+        />
+      )}
 
       {(!isConnected || syncQueue.length > 0) && (
         <View style={[styles.statusBadge, { top: insets.top + 8 }]}>
@@ -557,22 +568,31 @@ export function ReaderScreen() {
       )}
 
       {ready && (
-        <View style={timeBadgeStyle}>
-          <Text style={styles.timeBadgeText}>
-            {chapterWords > 0
-              ? `~${timeRemaining.chapterMin}m in chap${
-                  timeRemaining.totalMin > 0 &&
-                  timeRemaining.totalMin > timeRemaining.chapterMin
-                    ? ` · ~${
-                        timeRemaining.totalMin >= 60
-                          ? `${Math.floor(timeRemaining.totalMin / 60)}h ${timeRemaining.totalMin % 60}m`
-                          : `${timeRemaining.totalMin}m`
-                      } total`
-                    : ''
-                }`
-              : 'Calculating...'}
-          </Text>
-        </View>
+        <>
+          {totalPages > 0 && (
+            <View style={pageBadgeStyle}>
+              <Text style={styles.badgeText}>
+                Pág. {currentPage} de {totalPages}
+              </Text>
+            </View>
+          )}
+          <View style={timeBadgeLeftStyle}>
+            <Text style={styles.badgeText}>
+              {chapterWords > 0
+                ? `~${timeRemaining.chapterMin}m in chap${
+                    timeRemaining.totalMin > 0 &&
+                    timeRemaining.totalMin > timeRemaining.chapterMin
+                      ? ` · ~${
+                          timeRemaining.totalMin >= 60
+                            ? `${Math.floor(timeRemaining.totalMin / 60)}h ${timeRemaining.totalMin % 60}m`
+                            : `${timeRemaining.totalMin}m`
+                        } total`
+                      : ''
+                  }`
+                : 'Calculating...'}
+            </Text>
+          </View>
+        </>
       )}
 
       {showOverlay && ready && (
@@ -1051,13 +1071,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  timeBadge: {
+  pageBadge: {
     position: 'absolute',
     right: 16,
     zIndex: 999,
     elevation: 10,
   },
-  timeBadgeText: {
+  timeBadgeLeft: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 999,
+    elevation: 10,
+  },
+  badgeText: {
     color: 'rgba(0,0,0,0.7)',
     fontSize: 11,
     fontWeight: '400',
