@@ -18,19 +18,13 @@ import { colors } from '@/shared/theme/colors';
 
 export function WishlistScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { wishlist, loading, fetchWishlist, markAsWantToRead } = useRecommendationStore();
+  const { wishlist, loading, fetchWishlist } = useRecommendationStore();
 
   useEffect(() => {
     fetchWishlist();
   }, [fetchWishlist]);
 
-  const handleRemove = async (id: string) => {
-    hapticLight();
-    await markAsWantToRead(id); // This won't work as expected since markAsWantToRead already marks as want_to_read
-    // We need a remove action. Let's handle it via dismissSuggestion indirectly
-  };
-
-  // Better: use dismissSuggestion to remove from wishlist
+  // use dismissSuggestion to remove from wishlist
   const { dismissSuggestion } = useRecommendationStore();
 
   const handleDismissFromWishlist = async (id: string) => {

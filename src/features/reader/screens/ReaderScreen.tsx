@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
-  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -58,14 +57,6 @@ import type { RootStackParamList } from '@/types';
 import NetInfo from '@react-native-community/netinfo';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
-
-const HIGHLIGHT_COLORS = [
-  { color: colors.highlightYellow, label: 'Yellow' },
-  { color: colors.highlightGreen, label: 'Green' },
-  { color: colors.highlightBlue, label: 'Blue' },
-  { color: colors.highlightPink, label: 'Pink' },
-  { color: colors.highlightOrange, label: 'Orange' },
-];
 
 const THEME_OPTIONS: { label: string; value: Preferences['colorScheme'] }[] = [
   { label: 'Light', value: 'light' },
@@ -719,7 +710,7 @@ export function ReaderScreen() {
 
       {/* Chapters list */}
       {showChapters && toc.length > 0 && (
-        <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end' }]}>
+        <View style={absoluteFillEnd}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -785,11 +776,7 @@ export function ReaderScreen() {
             <Text style={styles.highlightsTitle}>Highlights</Text>
             <TouchableOpacity onPress={() => setShowHighlights(false)}>
               <Text
-                style={{
-                  color: colors.accent,
-                  fontSize: 15,
-                  fontWeight: '600',
-                }}
+                style={styles.highlightsCloseText}
               >
                 Close
               </Text>
@@ -954,6 +941,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: colors.text,
+  },
+  highlightsCloseText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: '600',
   },
   noHighlights: {
     color: colors.textMuted,
