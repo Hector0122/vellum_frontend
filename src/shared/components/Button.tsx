@@ -14,14 +14,14 @@ interface ButtonProps extends TouchableOpacityProps {
   loading?: boolean;
 }
 
-export function Button({
+const ButtonInner = ({
   title,
   variant = 'primary',
   loading = false,
   style,
   disabled,
   ...props
-}: ButtonProps) {
+}: ButtonProps) => {
   return (
     <TouchableOpacity
       style={[
@@ -48,7 +48,9 @@ export function Button({
       )}
     </TouchableOpacity>
   );
-}
+};
+
+export const Button = React.memo(ButtonInner);
 
 const styles = StyleSheet.create({
   base: {

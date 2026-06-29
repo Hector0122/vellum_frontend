@@ -65,6 +65,7 @@ export interface Note {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  Profile: undefined;
   Highlights: undefined;
   WidgetConfig: undefined;
   Discover: undefined;

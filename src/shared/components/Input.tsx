@@ -13,7 +13,7 @@ interface InputProps extends TextInputProps {
   error?: string;
 }
 
-export function Input({ label, error, style, children: _children, ...props }: InputProps) {
+const InputInner = ({ label, error, style, children: _children, ...props }: InputProps) => {
   return (
     <View style={styles.wrapper}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -25,7 +25,9 @@ export function Input({ label, error, style, children: _children, ...props }: In
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
-}
+};
+
+export const Input = React.memo(InputInner);
 
 const styles = StyleSheet.create({
   wrapper: {

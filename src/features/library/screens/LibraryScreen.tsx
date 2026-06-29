@@ -19,7 +19,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { useLibraryStore } from '@/stores/libraryStore';
-import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/shared/lib/api';
 import { removeCachedEpub } from '@/shared/lib/epubCache';
 import { analytics } from '@/shared/lib/analytics';
@@ -58,15 +57,18 @@ const FLATLIST_CONFIG = {
 export function LibraryScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { books, loading, fetchBooks, deleteBook, markAsRead, updatePages } = useLibraryStore();
-  const { user, signOut } = useAuthStore();
+  const books = useLibraryStore(s => s.books);
+  const loading = useLibraryStore(s => s.loading);
+  const fetchBooks = useLibraryStore(s => s.fetchBooks);
+  const deleteBook = useLibraryStore(s => s.deleteBook);
+  const markAsRead = useLibraryStore(s => s.markAsRead);
+  const updatePages = useLibraryStore(s => s.updatePages);
 
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [sort, setSort] = useState<SortMode>('last');
   const [showSort, setShowSort] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [contextBook, setContextBook] = useState<Book | null>(null);
   const [showContext, setShowContext] = useState(false);
   const [showEditPages, setShowEditPages] = useState(false);
@@ -98,6 +100,18 @@ export function LibraryScreen() {
       ]).start();
     }
   }, [streak, streakChanged, flameScale]);
+
+  const refreshCtrl = useMemo(
+    () => (
+      <RefreshControl
+        refreshing={loading}
+        onRefresh={fetchBooks}
+        tintColor={colors.accent}
+        colors={[colors.accent]}
+      />
+    ),
+    [loading, fetchBooks],
+  );
 
   const filtered = useMemo(() => {
     let result = [...books];
@@ -284,17 +298,6 @@ export function LibraryScreen() {
     ]);
   }, [contextBook, deleteBook]);
 
-  const handleLogout = useCallback(() => {
-    Alert.alert('Log out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log out',
-        style: 'destructive',
-        onPress: () => signOut(),
-      },
-    ]);
-  }, [signOut]);
-
   const renderBook = useCallback(
     ({ item, index }: { item: Book; index: number }) => (
       <BookCard
@@ -331,38 +334,12 @@ export function LibraryScreen() {
                 )}
               </Animated.View>
             </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.headerBtn}
-                onPress={() => navigation.navigate('Discover')}
-              >
-                <Icon name="compass-outline" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerBtn}
-                onPress={() => navigation.navigate('Wishlist')}
-              >
-                <Icon name="bookmark-multiple-outline" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerBtn}
-                onPress={() => navigation.navigate('WidgetConfig')}
-              >
-                <Icon name="widget-outline" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerBtn}
-                onPress={() => navigation.navigate('Highlights')}
-              >
-                <Icon name="marker" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerBtn}
-                onPress={() => setShowProfile(true)}
-              >
-                <Icon name="account-circle-outline" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Icon name="account-circle-outline" size={26} color={colors.textSecondary} />
+            </TouchableOpacity>
           </View>
 
           {/* Search */}
@@ -483,14 +460,7 @@ export function LibraryScreen() {
               maxToRenderPerBatch={FLATLIST_CONFIG.maxToRenderPerBatch}
               windowSize={FLATLIST_CONFIG.windowSize}
               removeClippedSubviews={FLATLIST_CONFIG.removeClippedSubviews}
-              refreshControl={
-                <RefreshControl
-                  refreshing={loading}
-                  onRefresh={fetchBooks}
-                  tintColor={colors.accent}
-                  colors={[colors.accent]}
-                />
-              }
+              refreshControl={refreshCtrl}
             />
           )}
         </View>
@@ -502,40 +472,6 @@ export function LibraryScreen() {
           backgroundColor={colors.accent}
           color={colors.white}
         />
-
-        {/* Profile Modal */}
-        <Modal
-          visible={showProfile}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowProfile(false)}
-        >
-          <SafeAreaView style={styles.modalSafe} edges={['bottom']}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Profile</Text>
-                <TouchableOpacity onPress={() => setShowProfile(false)}>
-                  <Icon name="close" size={24} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.profileSection}>
-                <View style={styles.avatar}>
-                  <Icon name="account" size={36} color={colors.accent} />
-                </View>
-                <Text style={styles.displayName}>
-                  {user?.display_name || user?.email?.split('@')[0]}
-                </Text>
-                <Text style={styles.email}>{user?.email}</Text>
-              </View>
-
-              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                <Icon name="logout" size={20} color={colors.destructive} />
-                <Text style={styles.logoutText}>Log out</Text>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </Modal>
 
         {/* Context Menu Modal */}
         <Modal
@@ -781,64 +717,6 @@ const styles = StyleSheet.create({
   list: {
     gap: 10,
     paddingBottom: 20,
-  },
-  modalSafe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  modalContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  profileSection: {
-    alignItems: 'center',
-    marginBottom: 24,
-    gap: 8,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  displayName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  email: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    marginTop: 16,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,107,107,0.12)',
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.destructive,
   },
   modalOverlay: {
     flex: 1,

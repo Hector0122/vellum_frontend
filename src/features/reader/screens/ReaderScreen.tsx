@@ -98,10 +98,16 @@ export function ReaderScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { bookId } = route.params;
-  const { books, updateProgress } = useLibraryStore();
-  const { highlights, fetchHighlights, createHighlight, deleteHighlight } =
-    useHighlightStore();
-  const { notes, fetchNotes, createNote, deleteNote } = useNoteStore();
+  const books = useLibraryStore(s => s.books);
+  const updateProgress = useLibraryStore(s => s.updateProgress);
+  const highlights = useHighlightStore(s => s.highlights);
+  const fetchHighlights = useHighlightStore(s => s.fetchHighlights);
+  const createHighlight = useHighlightStore(s => s.createHighlight);
+  const deleteHighlight = useHighlightStore(s => s.deleteHighlight);
+  const notes = useNoteStore(s => s.notes);
+  const fetchNotes = useNoteStore(s => s.fetchNotes);
+  const createNote = useNoteStore(s => s.createNote);
+  const deleteNote = useNoteStore(s => s.deleteNote);
   const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
@@ -134,9 +140,11 @@ export function ReaderScreen() {
     loaded: fontPrefsLoaded,
   } = useFontPrefs();
   const { startSession, endSession } = useReadingStats();
-  const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } =
-    useBookmarkStore();
-  const { queue: syncQueue } = useSyncQueueStore();
+  const bookmarks = useBookmarkStore(s => s.bookmarks);
+  const fetchBookmarks = useBookmarkStore(s => s.fetchBookmarks);
+  const addBookmark = useBookmarkStore(s => s.addBookmark);
+  const removeBookmark = useBookmarkStore(s => s.removeBookmark);
+  const syncQueue = useSyncQueueStore(s => s.queue);
 
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const captureResponder = useCallback(() => true, []);
@@ -183,7 +191,7 @@ export function ReaderScreen() {
         try {
           path = await downloadAndCache(bookId);
         } catch (e) {
-          console.error('Failed to download book:', e);
+          if (__DEV__) console.error('Failed to download book:', e);
           setReaderError('Failed to download book');
           return;
         }
@@ -463,7 +471,7 @@ export function ReaderScreen() {
   );
 
   const chaptersKeyExtractor = useCallback(
-    (_: unknown, i: number) => String(i),
+    (item: { href: string }) => item.href,
     [],
   );
   const bookmarksKeyExtractor = useCallback(

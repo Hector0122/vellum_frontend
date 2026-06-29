@@ -23,8 +23,16 @@ const FLATLIST_CONFIG = {
 
 export function HighlightsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { allHighlights, loading: hLoading, allLoading, allHasMore, fetchAllHighlights, deleteHighlight } = useHighlightStore();
-  const { allNotes, fetchAllNotes, createNote, deleteNote } = useNoteStore();
+  const allHighlights = useHighlightStore(s => s.allHighlights);
+  const hLoading = useHighlightStore(s => s.loading);
+  const allLoading = useHighlightStore(s => s.allLoading);
+  const allHasMore = useHighlightStore(s => s.allHasMore);
+  const fetchAllHighlights = useHighlightStore(s => s.fetchAllHighlights);
+  const deleteHighlight = useHighlightStore(s => s.deleteHighlight);
+  const allNotes = useNoteStore(s => s.allNotes);
+  const fetchAllNotes = useNoteStore(s => s.fetchAllNotes);
+  const createNote = useNoteStore(s => s.createNote);
+  const deleteNote = useNoteStore(s => s.deleteNote);
 
   useEffect(() => {
     fetchAllHighlights(true);

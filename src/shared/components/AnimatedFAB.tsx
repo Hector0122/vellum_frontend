@@ -19,12 +19,12 @@ interface AnimatedFABProps {
   backgroundColor?: string;
 }
 
-export function AnimatedFAB({
+const AnimatedFABInner = ({
   onPress,
   icon,
   color = colors.white,
   backgroundColor = '#FF6B35',
-}: AnimatedFABProps) {
+}: AnimatedFABProps) => {
   const scale = useSharedValue(0);
   const rotation = useSharedValue(0);
 
@@ -65,7 +65,9 @@ export function AnimatedFAB({
       <Icon name={icon} size={28} color={color} />
     </AnimatedTouchable>
   );
-}
+};
+
+export const AnimatedFAB = React.memo(AnimatedFABInner);
 
 const styles = StyleSheet.create({
   fab: {

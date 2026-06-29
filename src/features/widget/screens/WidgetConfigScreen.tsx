@@ -21,7 +21,9 @@ import type { Book, Highlight } from '@/types';
 
 export function WidgetConfigScreen() {
   const navigation = useNavigation();
-  const { books, fetchBooks, loading } = useLibraryStore();
+  const books = useLibraryStore(s => s.books);
+  const loading = useLibraryStore(s => s.loading);
+  const fetchBooks = useLibraryStore(s => s.fetchBooks);
 
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

@@ -10,7 +10,7 @@ interface AnimatedListItemProps {
 /**
  * List item con fade-in staggered (cada item entra con delay)
  */
-export function AnimatedListItem({ children, index, style }: AnimatedListItemProps) {
+const AnimatedListItemInner = ({ children, index, style }: AnimatedListItemProps) => {
   return (
     <Animated.View
       entering={FadeInRight.delay(index * 50).springify()}
@@ -20,7 +20,9 @@ export function AnimatedListItem({ children, index, style }: AnimatedListItemPro
       {children}
     </Animated.View>
   );
-}
+};
+
+export const AnimatedListItem = React.memo(AnimatedListItemInner);
 
 /**
  * Fade-in general para cualquier contenido

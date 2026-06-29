@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,47 +18,50 @@ import { colors } from '@/shared/theme/colors';
 
 export function WishlistScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { wishlist, loading, fetchWishlist } = useRecommendationStore();
+  const wishlist = useRecommendationStore(s => s.wishlist);
+  const loading = useRecommendationStore(s => s.loading);
+  const fetchWishlist = useRecommendationStore(s => s.fetchWishlist);
+  const dismissSuggestion = useRecommendationStore(s => s.dismissSuggestion);
 
   useEffect(() => {
     fetchWishlist();
   }, [fetchWishlist]);
 
-  // use dismissSuggestion to remove from wishlist
-  const { dismissSuggestion } = useRecommendationStore();
-
-  const handleDismissFromWishlist = async (id: string) => {
+  const handleDismissFromWishlist = useCallback(async (id: string) => {
     hapticLight();
     await dismissSuggestion(id);
     await fetchWishlist();
-  };
+  }, [dismissSuggestion, fetchWishlist]);
 
-  const renderItem = ({ item }: { item: BookSuggestion }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderText}>
-          <Text style={styles.title}>{item.title}</Text>
-          {item.author && <Text style={styles.author}>{item.author}</Text>}
-        </View>
-        <TouchableOpacity onPress={() => handleDismissFromWishlist(item.id)}>
-          <Icon name="close-circle-outline" size={22} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.genreRow}>
-        {item.genres.map((g) => (
-          <View key={g} style={styles.genreChip}>
-            <Text style={styles.genreText}>{g}</Text>
+  const renderItem = useCallback(
+    ({ item }: { item: BookSuggestion }) => (
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardHeaderText}>
+            <Text style={styles.title}>{item.title}</Text>
+            {item.author && <Text style={styles.author}>{item.author}</Text>}
           </View>
-        ))}
-      </View>
+          <TouchableOpacity onPress={() => handleDismissFromWishlist(item.id)}>
+            <Icon name="close-circle-outline" size={22} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
 
-      {item.synopsis && (
-        <Text style={styles.synopsis} numberOfLines={3}>
-          {item.synopsis}
-        </Text>
-      )}
-    </View>
+        <View style={styles.genreRow}>
+          {item.genres.map((g) => (
+            <View key={g} style={styles.genreChip}>
+              <Text style={styles.genreText}>{g}</Text>
+            </View>
+          ))}
+        </View>
+
+        {item.synopsis && (
+          <Text style={styles.synopsis} numberOfLines={3}>
+            {item.synopsis}
+          </Text>
+        )}
+      </View>
+    ),
+    [handleDismissFromWishlist],
   );
 
   return (
