@@ -24,22 +24,32 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ReadiumView } from 'react-native-readium';
+import type {
+  ReadiumViewRef,
+  Locator,
+  File as ReadiumFile,
+  PublicationReadyEvent,
+  SelectionAction,
+  SelectionActionEvent,
+  DecorationActivatedEvent,
+  Decoration,
+  DecorationGroup,
+  Preferences,
+} from 'react-native-readium';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useHighlightStore } from '@/stores/highlightStore';
 import { useNoteStore } from '@/stores/noteStore';
 import { useBookmarkStore } from '@/stores/bookmarkStore';
-import { EpubReader } from '../components/EpubReader';
-import type { EpubReaderHandle } from '../components/EpubReader';
 import {
   isEpubCached,
-  getCachedEpubBase64,
+  getCachedEpubPath,
   downloadAndCache,
 } from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
-import { api } from '@/shared/lib/api';
 import { showToast } from '@/shared/components/Toast';
 import { useReadingStats } from '@/shared/hooks/useReadingStats';
 import { useSyncQueueStore } from '@/stores/syncQueueStore';
@@ -57,12 +67,38 @@ const HIGHLIGHT_COLORS = [
   { color: colors.highlightOrange, label: 'Orange' },
 ];
 
+const THEME_OPTIONS: { label: string; value: Preferences['colorScheme'] }[] = [
+  { label: 'Light', value: 'light' },
+  { label: 'Sepia', value: 'sepia' },
+  { label: 'Dark', value: 'dark' },
+];
+
 const FLATLIST_CONFIG = {
   initialNumToRender: 8,
   maxToRenderPerBatch: 10,
   windowSize: 5,
   removeClippedSubviews: true,
 };
+
+const selectionActions: SelectionAction[] = [
+  { id: 'highlight', label: 'Highlight' },
+  { id: 'bookmark', label: 'Bookmark' },
+];
+
+function makeFileUrl(path: string): string {
+  if (path.startsWith('file://')) return path;
+  return `file://${path}`;
+}
+
+function flattenToc(
+  items: any[],
+  depth = 0,
+): { href: string; label: string; depth: number }[] {
+  return items.flatMap((item: any) => [
+    { href: item.href, label: item.title || 'Chapter', depth },
+    ...(item.children ? flattenToc(item.children, depth + 1) : []),
+  ]);
+}
 
 export function ReaderScreen() {
   const route = useRoute<ReaderRoute>();
@@ -78,32 +114,23 @@ export function ReaderScreen() {
   const [showOverlay, setShowOverlay] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
   const [readerError, setReaderError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<{ cfiRange: string; text: string } | null>(null);
-  const [creatingHighlight, setCreatingHighlight] = useState(false);
-  const [cachedData, setCachedData] = useState<string | null | undefined>(undefined);
   const [toc, setToc] = useState<{ label: string; href: string; depth: number }[]>([]);
+  const [positions, setPositions] = useState<{ totalCount: number } | null>(null);
+  const [currentPosition, setCurrentPosition] = useState(0);
+  const [overallProgress, setOverallProgress] = useState(0);
+  const [file, setFile] = useState<ReadiumFile | null>(null);
+  const [decorations, setDecorations] = useState<DecorationGroup[]>([]);
+  const [theme, setTheme] = useState<Preferences['colorScheme']>('sepia');
   const [showChapters, setShowChapters] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [chapterWords, setChapterWords] = useState(0);
-  const [chapterPct, setChapterPct] = useState(0);
-  const [overallProgress, setOverallProgress] = useState(0);
-  const [totalChapters, setTotalChapters] = useState(0);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [wpm, setWpm] = useState(200);
-  const [summary, setSummary] = useState<string | null>(null);
-  const [summarizing, setSummarizing] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
-  const currentChapterIndexRef = useRef(0);
-  const epubRef = useRef<EpubReaderHandle>(null);
-  const currentCfiRef = useRef('');
-  const chapterWordsRef = useRef(0);
-  const lastChapterWordsRef = useRef(0);
-  const totalBookWordsRef = useRef(0);
-  const chaptersSeenRef = useRef(new Set<number>());
-  const chapterStartTimeRef = useRef(Date.now());
-  const lastChapterIndexRef = useRef(-1);
+
+  const readiumRef = useRef<ReadiumViewRef>(null);
+  const currentLocatorRef = useRef<Locator | null>(null);
+  const progressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastProgressRef = useRef<{ percent: number; locator: string } | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+
   const {
     fontSize,
     fontFamily,
@@ -114,27 +141,11 @@ export function ReaderScreen() {
     loaded: fontPrefsLoaded,
   } = useFontPrefs();
   const { startSession, endSession } = useReadingStats();
-  const sessionIdRef = useRef<string | null>(null);
   const { bookmarks, fetchBookmarks, addBookmark, removeBookmark } =
     useBookmarkStore();
   const { queue: syncQueue } = useSyncQueueStore();
 
-  const trackedIncrease = useCallback(() => {
-    increaseSize();
-    analytics.trackEvent('font_changed', { direction: 'increase' });
-  }, [increaseSize]);
-
-  const trackedDecrease = useCallback(() => {
-    decreaseSize();
-    analytics.trackEvent('font_changed', { direction: 'decrease' });
-  }, [decreaseSize]);
-
-  const trackedCycleFont = useCallback(() => {
-    cycleFont();
-    analytics.trackEvent('font_changed', { direction: 'cycle' });
-  }, [cycleFont]);
-
-  const book = useMemo(() => books.find(b => b.id === bookId), [books, bookId]);
+  const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const captureResponder = useCallback(() => true, []);
   const absoluteFillEnd = useMemo(
     () => ({ ...StyleSheet.absoluteFill, justifyContent: 'flex-end' as const }),
@@ -172,24 +183,46 @@ export function ReaderScreen() {
 
     (async () => {
       const cached = await isEpubCached(bookId);
+      let path: string | null = null;
       if (cached) {
-        const b64 = await getCachedEpubBase64(bookId);
-        setCachedData(b64);
+        path = await getCachedEpubPath(bookId);
       } else {
         try {
-          const b64 = await downloadAndCache(bookId);
-          setCachedData(b64);
+          path = await downloadAndCache(bookId);
         } catch {
-          setCachedData(null);
+          setReaderError('Failed to download book');
+          return;
         }
       }
+      if (!path) {
+        setReaderError('Book file not found');
+        return;
+      }
+
+      const initialLocation: Locator | undefined = book?.progress_cfi
+        ? (() => {
+            try {
+              return JSON.parse(book.progress_cfi) as Locator;
+            } catch {
+              return undefined;
+            }
+          })()
+        : undefined;
+
+      setFile({ url: makeFileUrl(path), initialLocation });
     })();
-  }, [bookId, fetchHighlights, fetchNotes]);
+  }, [bookId, fetchHighlights, fetchNotes, book]);
 
   useEffect(() => {
     analytics.trackReaderOpen(bookId);
     analytics.trackPageView('Reader');
   }, [bookId]);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimeoutRef.current) clearTimeout(progressTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,116 +232,149 @@ export function ReaderScreen() {
     })();
     return () => {
       cancelled = true;
-      endSession(sessionIdRef.current, chapterWordsRef.current);
+      endSession(sessionIdRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId]);
 
-  const handleProgress = useCallback(
-    (percent: number, cfi: string, chapPct: number, chapterIndex: number, displayedPage?: number, total?: number) => {
-      currentCfiRef.current = cfi;
-      setChapterPct(chapPct);
-      setOverallProgress(percent);
-      if (displayedPage !== undefined) setCurrentPage(displayedPage);
-      if (total !== undefined) setTotalPages(total);
+  const handlePublicationReady = useCallback(
+    (event: PublicationReadyEvent) => {
+      setReady(true);
+      setPositions(event.positions);
+      fetchBookmarks(bookId);
 
-      const prevIndex = lastChapterIndexRef.current;
-      if (chapterIndex !== prevIndex && prevIndex !== -1) {
-        const prevWords = lastChapterWordsRef.current;
-        if (prevWords > 0) {
-          const elapsedMin = (Date.now() - chapterStartTimeRef.current) / 60000;
-          if (elapsedMin > 0.5 && elapsedMin < 120) {
-            const actualWPM = Math.round(prevWords / elapsedMin);
-            if (actualWPM > 50 && actualWPM < 1000) {
-              setWpm(p => Math.round(p * 0.7 + actualWPM * 0.3));
-            }
+      try {
+        const flat = flattenToc(event.tableOfContents || []);
+        setToc(flat);
+      } catch {
+        setToc([]);
+      }
+
+      const hlDecorations: Decoration[] = highlights
+        .map((h) => {
+          try {
+            const locator = JSON.parse(h.location) as Locator;
+            return {
+              id: h.id,
+              locator,
+              style: { type: 'highlight' as const, tint: h.color },
+            };
+          } catch {
+            return null;
           }
-        }
-        chapterStartTimeRef.current = Date.now();
-      }
-      lastChapterIndexRef.current = chapterIndex;
-      currentChapterIndexRef.current = chapterIndex;
+        })
+        .filter(Boolean) as Decoration[];
 
-      if (!chaptersSeenRef.current.has(chapterIndex)) {
-        chaptersSeenRef.current.add(chapterIndex);
-        totalBookWordsRef.current += chapterWordsRef.current;
-      }
+      setDecorations([{ name: 'highlights', decorations: hlDecorations }]);
+    },
+    [fetchBookmarks, bookId, highlights],
+  );
+
+  const handleLocationChange = useCallback(
+    (locator: Locator) => {
+      currentLocatorRef.current = locator;
+      const position = locator.locations?.position ?? 0;
+      const total = positions?.totalCount ?? 1;
+      const percent = total > 0 ? Math.round((position / total) * 100) : 0;
+
+      setCurrentPosition(position);
+      setOverallProgress(percent);
 
       if (book && percent >= 0) {
-        updateProgress(book.id, percent, cfi || undefined);
+        const locatorStr = JSON.stringify(locator);
+        lastProgressRef.current = { percent, locator: locatorStr };
+        if (progressTimeoutRef.current) clearTimeout(progressTimeoutRef.current);
+        progressTimeoutRef.current = setTimeout(() => {
+          updateProgress(bookId, percent, locatorStr, position, total);
+        }, 500);
       }
     },
-    [book, updateProgress],
+    [book, bookId, positions, updateProgress],
   );
 
-  const handleReady = useCallback((totalCh: number) => {
-    setReady(true);
-    setTotalChapters(totalCh);
-    fetchBookmarks(bookId);
-  }, [fetchBookmarks, bookId]);
-
-  const handleReaderError = useCallback((msg: string) => {
-    setReaderError(msg);
-  }, []);
-
-  const handleToc = useCallback(
-    (chapters: { label: string; href: string; depth: number }[]) => {
-      if (__DEV__) console.log('[ReaderScreen] TOC received:', chapters.length);
-      setToc(chapters);
-    },
-    [],
-  );
-
-  const handleWordCount = useCallback((words: number) => {
-    if (chapterWordsRef.current > 0) {
-      lastChapterWordsRef.current = chapterWordsRef.current;
-    }
-    setChapterWords(words);
-    chapterWordsRef.current = words;
-  }, []);
-
-  const handleChapterText = useCallback(
-    async (text: string) => {
-      if (!text.trim()) {
-        setSummarizing(false);
-        showToast('error', 'No text found in chapter');
-        return;
-      }
-
-      const chapterIndex = currentChapterIndexRef.current;
-      try {
-        const { summary: result, cached } = await api.post<{
-          summary: string;
-          cached: boolean;
-        }>(`/api/books/${bookId}/${chapterIndex}/summary`, { text });
-
-        setSummary(result);
-        setShowSummary(true);
-        setSummarizing(false);
-        showToast(
-          'success',
-          cached ? 'Summary loaded from cache' : 'Summary created',
-        );
-      } catch (err: any) {
-        setSummarizing(false);
-        showToast('error', 'Summary failed', err.message);
+  const handleSelectionAction = useCallback(
+    (event: SelectionActionEvent) => {
+      if (event.actionId === 'highlight') {
+        const color = colors.highlightYellow;
+        const locatorStr = JSON.stringify(event.locator);
+        createHighlight(bookId, event.selectedText || '', locatorStr, color)
+          .then(() => {
+            hapticSuccess();
+            showToast('success', 'Highlight created');
+            const newDecoration: Decoration = {
+              id: `hl_${Date.now()}`,
+              locator: event.locator,
+              style: { type: 'highlight', tint: color },
+            };
+            setDecorations((prev) => {
+              const group = prev.find((g) => g.name === 'highlights');
+              if (group) {
+                return prev.map((g) =>
+                  g.name === 'highlights'
+                    ? { ...g, decorations: [...g.decorations, newDecoration] }
+                    : g,
+                );
+              }
+              return [...prev, { name: 'highlights', decorations: [newDecoration] }];
+            });
+          })
+          .catch((err: any) => {
+            showToast('error', 'Error', err.message);
+          });
+      } else if (event.actionId === 'bookmark') {
+        addBookmark(
+          bookId,
+          JSON.stringify(event.locator),
+          event.selectedText?.slice(0, 50),
+        )
+          .then(() => {
+            hapticSuccess();
+            showToast('success', 'Bookmark added');
+          })
+          .catch(() => {
+            showToast('error', 'Failed to add bookmark');
+          });
       }
     },
-    [bookId],
+    [bookId, createHighlight, addBookmark],
   );
 
-  const handleSummarize = useCallback(() => {
-    setSummarizing(true);
-    setSummary(null);
-    epubRef.current?.getChapterText();
-  }, []);
+  const handleDecorationActivated = useCallback(
+    (event: DecorationActivatedEvent) => {
+      Alert.alert('Highlight', 'Delete this highlight?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteHighlight(bookId, event.decoration.id)
+              .then(() => {
+                setDecorations((prev) =>
+                  prev.map((g) => ({
+                    ...g,
+                    decorations: g.decorations.filter(
+                      (d) => d.id !== event.decoration.id,
+                    ),
+                  })),
+                );
+              })
+              .catch(() => {
+                showToast('error', 'Failed to delete highlight');
+              });
+            analytics.trackEvent('highlight_deleted', { book_id: bookId });
+          },
+        },
+      ]);
+    },
+    [bookId, deleteHighlight],
+  );
 
   const handleAddBookmark = useCallback(async () => {
     if (!book) return;
-    const cfi = currentCfiRef.current;
-    if (!cfi) return;
+    const locator = currentLocatorRef.current;
+    if (!locator) return;
     try {
-      await addBookmark(book.id, cfi);
+      await addBookmark(book.id, JSON.stringify(locator));
       hapticSuccess();
       showToast('success', 'Bookmark added');
     } catch {
@@ -316,24 +382,41 @@ export function ReaderScreen() {
     }
   }, [book, addBookmark]);
 
-  const handleGoToCfi = useCallback((cfi: string) => {
-    epubRef.current?.goToCfi(cfi);
-    setShowOverlay(false);
-    setShowBookmarks(false);
-  }, []);
+  const handleGoToBookmark = useCallback(
+    (cfi: string) => {
+      try {
+        const locator = JSON.parse(cfi) as Locator;
+        readiumRef.current?.goTo(locator);
+        setShowOverlay(false);
+        setShowBookmarks(false);
+      } catch {
+        showToast('error', 'Invalid bookmark location');
+      }
+    },
+    [],
+  );
 
-  const handleGoToChapter = useCallback((href: string) => {
-    if (__DEV__)
-      console.log(
-        '[ReaderScreen] handleGoToChapter:',
-        href,
-        'ref:',
-        !!epubRef.current,
-      );
-    epubRef.current?.goToChapter(href);
-    setShowOverlay(false);
-    setShowChapters(false);
-  }, []);
+  const handleGoToChapter = useCallback(
+    (href: string) => {
+      readiumRef.current?.goTo({ href });
+      setShowOverlay(false);
+      setShowChapters(false);
+    },
+    [],
+  );
+
+  const handleGoToHighlight = useCallback(
+    (location: string) => {
+      try {
+        const locator = JSON.parse(location) as Locator;
+        readiumRef.current?.goTo(locator);
+        setShowHighlights(false);
+      } catch {
+        showToast('error', 'Invalid highlight location');
+      }
+    },
+    [],
+  );
 
   const renderChapterItem = useCallback(
     ({
@@ -357,7 +440,7 @@ export function ReaderScreen() {
     ({ item }: { item: typeof bookmarks[number] }) => (
       <TouchableOpacity
         style={styles.chapterItem}
-        onPress={() => handleGoToCfi(item.cfi)}
+        onPress={() => handleGoToBookmark(item.cfi)}
         onLongPress={() => {
           Alert.alert(
             'Delete bookmark',
@@ -378,7 +461,7 @@ export function ReaderScreen() {
         </Text>
       </TouchableOpacity>
     ),
-    [handleGoToCfi, removeBookmark, book?.id],
+    [handleGoToBookmark, removeBookmark, book?.id],
   );
 
   const chaptersKeyExtractor = useCallback(
@@ -391,39 +474,9 @@ export function ReaderScreen() {
   );
 
   const toggleOverlay = useCallback(() => {
-    if (selected) {
-      setSelected(null);
-      return;
-    }
-    setShowOverlay(prev => !prev);
+    setShowOverlay((prev) => !prev);
     if (showHighlights) setShowHighlights(false);
-  }, [showHighlights, selected]);
-
-  const handleSelected = useCallback((cfiRange: string, text: string) => {
-    setSelected({ cfiRange, text });
-    setShowOverlay(true);
-    setShowHighlights(false);
-  }, []);
-
-  const handleCreateHighlight = useCallback(
-    async (color: string) => {
-      if (!selected) return;
-      setCreatingHighlight(true);
-      try {
-        await createHighlight(bookId, selected.text, selected.cfiRange, color);
-        await fetchNotes(bookId);
-        setSelected(null);
-        hapticSuccess();
-        showToast('success', 'Highlight created');
-        analytics.trackHighlightCreated(bookId, color);
-      } catch (err: any) {
-        showToast('error', 'Error', err.message);
-      } finally {
-        setCreatingHighlight(false);
-      }
-    },
-    [bookId, selected, createHighlight, fetchNotes],
-  );
+  }, [showHighlights]);
 
   const handleDeleteHighlight = useCallback(
     (highlightId: string) => {
@@ -434,7 +487,20 @@ export function ReaderScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            deleteHighlight(bookId, highlightId);
+            deleteHighlight(bookId, highlightId)
+              .then(() => {
+                setDecorations((prev) =>
+                  prev.map((g) => ({
+                    ...g,
+                    decorations: g.decorations.filter(
+                      (d) => d.id !== highlightId,
+                    ),
+                  })),
+                );
+              })
+              .catch(() => {
+                showToast('error', 'Failed to delete highlight');
+              });
             analytics.trackEvent('highlight_deleted', { book_id: bookId });
           },
         },
@@ -471,15 +537,6 @@ export function ReaderScreen() {
     [bookId, deleteNote],
   );
 
-  const highlightLocations = useMemo(
-    () =>
-      highlights.map(h => ({
-        location: h.location,
-        color: h.color,
-      })),
-    [highlights],
-  );
-
   const notesByHighlight = useMemo(() => {
     const map: Record<string, any[]> = {};
     for (const n of notes) {
@@ -491,43 +548,42 @@ export function ReaderScreen() {
     return map;
   }, [notes]);
 
-  const timeRemaining = useMemo(() => {
-    if (chapterWords === 0) return { chapterMin: 0, totalMin: 0 };
-
-    const remainingWords = Math.round(chapterWords * (1 - chapterPct));
-    const chapterMin = Math.max(1, Math.round(remainingWords / wpm));
-
-    let totalMin = 0;
-    if (totalChapters > 0 && chaptersSeenRef.current.size > 0) {
-      const avgWordsPerChapter = totalBookWordsRef.current / chaptersSeenRef.current.size;
-      const estimatedTotalWords = avgWordsPerChapter * totalChapters;
-      const remainingBookWords = Math.round(
-        estimatedTotalWords * (1 - overallProgress / 100),
-      );
-      totalMin = Math.round(remainingBookWords / wpm);
-    }
-
-    return { chapterMin, totalMin };
-  }, [chapterWords, chapterPct, wpm, totalChapters, overallProgress]);
-
   const renderHighlightItem = useCallback(
     ({ item, index }: { item: any; index: number }) => (
-      <HighlightItem
-        item={item}
-        index={index}
-        notes={notesByHighlight[item.id] || []}
-        onDelete={handleDeleteHighlight}
-        onSaveNote={handleSaveNote}
-        onDeleteNote={handleDeleteNote}
-      />
+      <TouchableOpacity onPress={() => handleGoToHighlight(item.location)}>
+        <HighlightItem
+          item={item}
+          index={index}
+          notes={notesByHighlight[item.id] || []}
+          onDelete={handleDeleteHighlight}
+          onSaveNote={handleSaveNote}
+          onDeleteNote={handleDeleteNote}
+        />
+      </TouchableOpacity>
     ),
     [
       notesByHighlight,
       handleDeleteHighlight,
       handleSaveNote,
       handleDeleteNote,
+      handleGoToHighlight,
     ],
   );
+
+  const preferences: Partial<Preferences> = useMemo(
+    () => ({
+      colorScheme: theme,
+      fontSize: fontSize * 100,
+      fontFamily,
+    }),
+    [theme, fontSize, fontFamily],
+  );
+
+  const cycleTheme = useCallback(() => {
+    const idx = THEME_OPTIONS.findIndex((t) => t.value === theme);
+    const next = THEME_OPTIONS[(idx + 1) % THEME_OPTIONS.length].value;
+    setTheme(next);
+  }, [theme]);
 
   if (!book) {
     return (
@@ -539,23 +595,18 @@ export function ReaderScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {fontPrefsLoaded && (
-        <EpubReader
-          ref={epubRef}
-          bookId={book.id}
-          initialCfi={book.progress_cfi}
-          data={cachedData}
-          fontSize={fontSize}
-          fontFamily={fontFamily}
-          highlights={highlightLocations}
-          onProgress={handleProgress}
-          onReady={handleReady}
-          onError={handleReaderError}
-          onTapped={toggleOverlay}
-          onSelected={handleSelected}
-          onToc={handleToc}
-          onWordCount={handleWordCount}
-          onChapterText={handleChapterText}
+      {fontPrefsLoaded && file && (
+        <ReadiumView
+          ref={readiumRef}
+          file={file}
+          preferences={preferences}
+          decorations={decorations}
+          selectionActions={selectionActions}
+          style={styles.readiumView}
+          onLocationChange={handleLocationChange}
+          onPublicationReady={handlePublicationReady}
+          onSelectionAction={handleSelectionAction}
+          onDecorationActivated={handleDecorationActivated}
         />
       )}
 
@@ -567,32 +618,27 @@ export function ReaderScreen() {
         </View>
       )}
 
-      {ready && (
+      {ready && positions && (
         <>
-          {totalPages > 0 && (
-            <View style={pageBadgeStyle}>
-              <Text style={styles.badgeText}>
-                Pág. {currentPage} de {totalPages}
-              </Text>
-            </View>
-          )}
-          <View style={timeBadgeLeftStyle}>
+          <View style={pageBadgeStyle}>
             <Text style={styles.badgeText}>
-              {chapterWords > 0
-                ? `~${timeRemaining.chapterMin}m in chap${
-                    timeRemaining.totalMin > 0 &&
-                    timeRemaining.totalMin > timeRemaining.chapterMin
-                      ? ` · ~${
-                          timeRemaining.totalMin >= 60
-                            ? `${Math.floor(timeRemaining.totalMin / 60)}h ${timeRemaining.totalMin % 60}m`
-                            : `${timeRemaining.totalMin}m`
-                        } total`
-                      : ''
-                  }`
-                : 'Calculating...'}
+              Pos. {currentPosition} / {positions.totalCount}
             </Text>
           </View>
+          <View style={timeBadgeLeftStyle}>
+            <Text style={styles.badgeText}>{overallProgress}%</Text>
+          </View>
         </>
+      )}
+
+      {ready && (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: insets.bottom + 16 }]}
+          onPress={toggleOverlay}
+          activeOpacity={0.8}
+        >
+          <Icon name="dots-vertical" size={24} color="#fff" />
+        </TouchableOpacity>
       )}
 
       {showOverlay && ready && (
@@ -602,7 +648,6 @@ export function ReaderScreen() {
             activeOpacity={1}
             onPress={() => {
               setShowOverlay(false);
-              setSelected(null);
             }}
           />
           <Animated.View
@@ -613,49 +658,25 @@ export function ReaderScreen() {
           >
             <View style={styles.panelHandle} />
 
-            {selected && (
-              <View style={styles.pickerInline}>
-                <Text style={styles.pickerText} numberOfLines={2}>
-                  &quot;{selected.text}&quot;
-                </Text>
-                <View style={styles.pickerColors}>
-                  {HIGHLIGHT_COLORS.map(c => (
-                    <TouchableOpacity
-                      key={c.color}
-                      style={[styles.colorDot, { backgroundColor: c.color }]}
-                      onPress={() => handleCreateHighlight(c.color)}
-                      disabled={creatingHighlight}
-                    />
-                  ))}
-                  <TouchableOpacity onPress={() => setSelected(null)}>
-                    <Text style={styles.pickerCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
             <View style={styles.fontRow}>
-              <TouchableOpacity
-                style={styles.fontBtn}
-                onPress={trackedDecrease}
-              >
+              <TouchableOpacity style={styles.fontBtn} onPress={decreaseSize}>
                 <Text style={styles.fontBtnText}>A−</Text>
               </TouchableOpacity>
               <Text style={styles.fontSizeLabel}>
                 {Math.round(fontSize * 100)}%
               </Text>
-              <TouchableOpacity
-                style={styles.fontBtn}
-                onPress={trackedIncrease}
-              >
+              <TouchableOpacity style={styles.fontBtn} onPress={increaseSize}>
                 <Text style={styles.fontBtnText}>A+</Text>
               </TouchableOpacity>
               <View style={styles.divider} />
-              <TouchableOpacity
-                style={styles.fontBtn}
-                onPress={trackedCycleFont}
-              >
+              <TouchableOpacity style={styles.fontBtn} onPress={cycleFont}>
                 <Text style={styles.fontLabelText}>{fontLabel}</Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity style={styles.fontBtn} onPress={cycleTheme}>
+                <Text style={styles.fontLabelText}>
+                  {THEME_OPTIONS.find((t) => t.value === theme)?.label}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -684,22 +705,11 @@ export function ReaderScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionBtn, summarizing && styles.actionBtnDisabled]}
-                onPress={handleSummarize}
-                disabled={summarizing}
+                style={styles.actionBtn}
+                onPress={() => setShowHighlights(true)}
               >
-                <Icon
-                  name={summarizing ? 'loading' : 'auto-fix'}
-                  size={16}
-                  color={summarizing ? colors.textMuted : '#10B981'}
-                />
-                <Text
-                  style={[
-                    styles.actionBtnText,
-                    { color: summarizing ? colors.textMuted : '#10B981' },
-                  ]}
-                >
-                  {summarizing ? 'Summarizing...' : 'AI Summary'}
+                <Text style={styles.actionBtnText}>
+                  Highlights ({highlights.length})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -763,38 +773,6 @@ export function ReaderScreen() {
         </View>
       )}
 
-      {/* AI Summary */}
-      {showSummary && summary && (
-        <View style={absoluteFillEnd}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setShowSummary(false)}
-          />
-          <Animated.View
-            entering={FadeIn.springify()}
-            exiting={FadeOut}
-            style={[styles.summaryPanel, panelPadding]}
-            onStartShouldSetResponder={captureResponder}
-          >
-            <View style={styles.panelHandle} />
-            <View style={styles.summaryHeader}>
-              <Icon name="auto-fix" size={18} color="#10B981" />
-              <Text style={styles.summaryTitle}>AI Summary</Text>
-              <TouchableOpacity onPress={() => setShowSummary(false)}>
-                <Icon name="close" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.summaryScroll}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.summaryText}>{summary}</Text>
-            </ScrollView>
-          </Animated.View>
-        </View>
-      )}
-
       {/* Highlights list */}
       {showHighlights && (
         <View
@@ -805,11 +783,7 @@ export function ReaderScreen() {
         >
           <View style={styles.highlightsHeader}>
             <Text style={styles.highlightsTitle}>Highlights</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowHighlights(false);
-              }}
-            >
+            <TouchableOpacity onPress={() => setShowHighlights(false)}>
               <Text
                 style={{
                   color: colors.accent,
@@ -828,7 +802,7 @@ export function ReaderScreen() {
           ) : (
             <FlatList
               data={highlights}
-              keyExtractor={h => h.id}
+              keyExtractor={(h) => h.id}
               renderItem={renderHighlightItem}
               contentContainerStyle={styles.highlightsList}
               initialNumToRender={FLATLIST_CONFIG.initialNumToRender}
@@ -857,6 +831,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  readiumView: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  fab: {
+    position: 'absolute',
+    right: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 999,
+  },
   overlayPanel: {
     backgroundColor: colors.elevated,
     borderTopLeftRadius: 20,
@@ -877,23 +871,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 4,
-  },
-  pickerInline: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
-    marginBottom: 8,
-  },
-  pickerText: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  pickerColors: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   fontRow: {
     flexDirection: 'row',
@@ -958,45 +935,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  actionBtnDisabled: {
-    opacity: 0.5,
-  },
-  summaryPanel: {
-    flex: 1,
-    backgroundColor: colors.elevated,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    gap: 12,
-    maxHeight: 350,
-    overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    flex: 1,
-  },
-  summaryScroll: {
-    flex: 1,
-  },
-  summaryText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-    paddingBottom: 8,
-  },
   highlightsPanel: {
     position: 'absolute',
     top: 0,
@@ -1026,17 +964,6 @@ const styles = StyleSheet.create({
   highlightsList: {
     gap: 10,
     paddingBottom: 40,
-  },
-  colorDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(0,0,0,0.12)',
-  },
-  pickerCancelText: {
-    color: colors.textMuted,
-    fontSize: 14,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFill,
@@ -1124,5 +1051,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-
 });

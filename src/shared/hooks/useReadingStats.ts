@@ -67,7 +67,7 @@ export function useReadingStats() {
   }, []);
 
   const endSession = useCallback(
-    async (sessionId: string | null, wordsRead: number) => {
+    async (sessionId: string | null, wordsRead: number = 0) => {
       if (!sessionId) return;
       try {
         await api.patch(`/api/stats/session/${sessionId}`, {

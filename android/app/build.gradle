@@ -80,6 +80,11 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.vellumfrontend"
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+    }
+
     defaultConfig {
         applicationId "com.vellumfrontend"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -128,4 +133,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.2"
 }

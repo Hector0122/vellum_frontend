@@ -1470,6 +1470,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@edrlab/thorium-locales@github:edrlab/thorium-locales":
+  version: 1.0.0
+  resolution: "@edrlab/thorium-locales@https://github.com/edrlab/thorium-locales.git#commit=f49f9ca149318f378d7bf996517adc446c0fd027"
+  checksum: 4aa25f5c81c6154f50efebb69cf3c49b190ba2109848870a7ac09b33a9b0782d351892f02475ebdd3798946c7b37c75f973dafe732514d0813affb3cd0fea03e
+  languageName: node
+  linkType: hard
+
 "@egjs/hammerjs@npm:^2.0.17":
   version: 2.0.17
   resolution: "@egjs/hammerjs@npm:2.0.17"
@@ -2472,6 +2479,36 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@readium/css@npm:^2.0.0":
+  version: 2.0.5
+  resolution: "@readium/css@npm:2.0.5"
+  checksum: db2c8c6426fd67de2cfeabe12a85394acb1cb952af8dff35548efcbaa2ae5bf3f8d780a9829a2523b17e8857d576310d563a7f2b268b6722ab5055685abf9ec0
+  languageName: node
+  linkType: hard
+
+"@readium/navigator-html-injectables@npm:^2.3.0":
+  version: 2.5.0
+  resolution: "@readium/navigator-html-injectables@npm:2.5.0"
+  checksum: 3a359a49a9992e2a9862e01d1e4c6c64b2c98ef880790fa5aba003c9cc26b77c2bc44d005309298e91ec3e4af58466fd934182d816e813ceb9cdcba318f384fd
+  languageName: node
+  linkType: hard
+
+"@readium/navigator@npm:^2.3.0":
+  version: 2.6.1
+  resolution: "@readium/navigator@npm:2.6.1"
+  checksum: 58dcbb560be000f9a72ba2be0420c3c3dfad877c0a412894fa56d1a693e2cf06eb0589c44a4c569d9801b3f7e5d4f83fab916197a1bcf55e53e016bea24381f4
+  languageName: node
+  linkType: hard
+
+"@readium/shared@npm:^2.1.5":
+  version: 2.2.3
+  resolution: "@readium/shared@npm:2.2.3"
+  dependencies:
+    "@edrlab/thorium-locales": "github:edrlab/thorium-locales"
+  checksum: 3b2dc130443f8656a97b5d96d1ebdf6d77c9af64998b5ae951d64c239910e028d1d0899ddeeebb91f9a6b96f1946808f44fb578a201a9bf9e3ff17f788306a27
+  languageName: node
+  linkType: hard
+
 "@sideway/address@npm:^4.1.5":
   version: 4.1.5
   resolution: "@sideway/address@npm:4.1.5"
@@ -2863,12 +2900,13 @@ __metadata:
     react-native-blob-util: ^0.24.9
     react-native-config: ^1.6.1
     react-native-gesture-handler: ^2.31.2
+    react-native-nitro-modules: ^0.35.10
+    react-native-readium: 5.0.0-rc.17
     react-native-reanimated: ^4.3.1
     react-native-safe-area-context: ^5.5.2
     react-native-screens: ^4.25.2
     react-native-toast-message: ^2.3.3
     react-native-vector-icons: ^10.3.0
-    react-native-webview: ^13.16.1
     react-native-worklets: ^0.8.0
     react-test-renderer: 19.2.3
     typescript: ^5.8.3
@@ -4031,6 +4069,13 @@ __metadata:
   version: 2.0.0
   resolution: "depd@npm:2.0.0"
   checksum: abbe19c768c97ee2eed6282d8ce3031126662252c58d711f646921c9623f9052e3e1906443066beec1095832f534e57c523b7333f8e7e0d93051ab6baef5ab3a
+  languageName: node
+  linkType: hard
+
+"dequal@npm:2.0.3":
+  version: 2.0.3
+  resolution: "dequal@npm:2.0.3"
+  checksum: 8679b850e1a3d0ebbc46ee780d5df7b478c23f335887464023a631d1b9af051ad4a6595a44220f9ff8ff95a8ddccf019b5ad778a976fd7bbf77383d36f412f90
   languageName: node
   linkType: hard
 
@@ -5371,7 +5416,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"invariant@npm:2.2.4, invariant@npm:^2.2.4":
+"invariant@npm:^2.2.4":
   version: 2.2.4
   resolution: "invariant@npm:2.2.4"
   dependencies:
@@ -7686,6 +7731,33 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-nitro-modules@npm:^0.35.10":
+  version: 0.35.10
+  resolution: "react-native-nitro-modules@npm:0.35.10"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 9a657b0503fa549d3d35e275f14872950c5f798367e8a983e5386760460d2bdbac4bd107ea78e67aec08eb03a8244e60f684faf7d252703bd4b1931bfac1890f
+  languageName: node
+  linkType: hard
+
+"react-native-readium@npm:5.0.0-rc.17":
+  version: 5.0.0-rc.17
+  resolution: "react-native-readium@npm:5.0.0-rc.17"
+  dependencies:
+    "@readium/css": ^2.0.0
+    "@readium/navigator": ^2.3.0
+    "@readium/navigator-html-injectables": ^2.3.0
+    "@readium/shared": ^2.1.5
+    use-deep-compare: ^1.1.0
+  peerDependencies:
+    react: "*"
+    react-native: ">=0.78.0"
+    react-native-nitro-modules: "*"
+  checksum: 68f8c54eb663425442c89aae127e064cf84ec365e7d12b8bcf16c933cd33ea1bb139489d7693e5b65b2fdf5b407fbaceb65820ce0a63417be114e784b54f570a
+  languageName: node
+  linkType: hard
+
 "react-native-reanimated@npm:^4.3.1":
   version: 4.3.1
   resolution: "react-native-reanimated@npm:4.3.1"
@@ -7745,19 +7817,6 @@ __metadata:
     fa6-upgrade: bin/fa6-upgrade.sh
     generate-icon: bin/generate-icon.js
   checksum: 5c431fd9a8e6efd355e34ed28ca7fa7eed30e89362280cbd1e474e6d16148c6c37f5c950a525ec0b428c79dc74b9fb7a61171fc509b6ab253e111456f3e49b71
-  languageName: node
-  linkType: hard
-
-"react-native-webview@npm:^13.16.1":
-  version: 13.16.1
-  resolution: "react-native-webview@npm:13.16.1"
-  dependencies:
-    escape-string-regexp: ^4.0.0
-    invariant: 2.2.4
-  peerDependencies:
-    react: "*"
-    react-native: "*"
-  checksum: c202500df090114877d7a92549dbac1c36bdcc2010d50ddffb57aedcec81870d9695f1e4e3ef852cbe02a8ef952ef8626b120b774813c396a32b4fdc5838a4a5
   languageName: node
   linkType: hard
 
@@ -9001,6 +9060,17 @@ __metadata:
   dependencies:
     punycode: ^2.1.0
   checksum: 7167432de6817fe8e9e0c9684f1d2de2bb688c94388f7569f7dbdb1587c9f4ca2a77962f134ec90be0cc4d004c939ff0d05acc9f34a0db39a3c797dada262633
+  languageName: node
+  linkType: hard
+
+"use-deep-compare@npm:^1.1.0":
+  version: 1.3.0
+  resolution: "use-deep-compare@npm:1.3.0"
+  dependencies:
+    dequal: 2.0.3
+  peerDependencies:
+    react: ">=16.8.0"
+  checksum: fada69c4562a92e1e81e406c40023a8adef2d020a84802ca05b9d9a476ee174087828e3f1224bfaac5059e6ef024c66a492260111a21f22f16581dc3cbfceb52
   languageName: node
   linkType: hard
 

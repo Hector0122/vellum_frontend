@@ -8,7 +8,7 @@ export interface Bookmark {
   id: string;
   user_id: string;
   book_id: string;
-  cfi: string;
+  cfi: string; // Readium Locator JSON string (legacy epub.js CFI values are not supported)
   label: string | null;
   created_at: string;
 }

@@ -107,24 +107,21 @@ Book {
 
 ## EPUB
 
-- epub.js v0.3.93 en WebView
-- JSZip para archivos comprimidos
-- PanGestureHandler para swipe
+- react-native-readium (Readium native toolkit)
 - Proxy backend → R2 para descarga
-- CFI persistence (restaura última página)
+- Locator persistence (restaura última posición)
 
 ## Features
 
 - Open instantly
-- Resume last page (CFI)
-- Swipe to turn pages (PanGestureHandler + Reanimated)
-- Tap to show/hide overlay
+- Resume last position (Locator)
+- Native page turn (Readium navigator)
+- Floating action button for controls overlay
 - Progress tracking
 - Font customization (A-/A+ size, System/Serif/Sans/Mono family)
 - Local EPUB cache for offline reading
-- Animated highlights and color picker (Reanimated)
+- Native text selection highlights
 - Bookmarks with quick navigation
-- Estimated reading time per chapter & book (adaptive WPM)
 
 ---
 
@@ -247,9 +244,9 @@ Backend → extract cover from EPUB
 
 ```
 App → GET /api/books → list metadata
-App → tap book → GET /api/books/:id/file?token= → stream EPUB
-App → epub.js renders in WebView
-App → PATCH /api/books/:id → save progress + CFI
+App → tap book → GET /api/books/:id/file?token= → download EPUB
+App → react-native-readium renders natively
+App → PATCH /api/books/:id → save progress + Locator
 ```
 
 ## Delete flow
@@ -372,9 +369,9 @@ Private bucket. Access via backend proxy with signed URLs.
 
 ## Reader
 
-- reading view (WebView + epub.js)
-- swipe navigation
-- overlay (tap to show/hide back + title)
+- reading view (react-native-readium)
+- native page navigation
+- overlay panel via FAB
 - progress tracking
 
 ## Profile (modal)
@@ -453,5 +450,58 @@ Powerful over time.
 
 
 
+
+---
+
+# ⚠️ Migration Notes
+
+## EPUB Reader Migration (epub.js → react-native-readium)
+
+- **Highlights, bookmarks, and reading progress stored before this migration use the old epub.js CFI format.**
+- These legacy items will appear in lists but **will not render or navigate in the new reader**, as `react-native-readium` uses Readium Locator JSON instead of CFI strings.
+- New highlights, bookmarks, and progress saved after this migration will work correctly.
+- If you encounter "Invalid bookmark location" or missing highlights, the item was created before the migration and is now obsolete.
+
+## Backend Changes Required
+
+The backend currently treats location fields as opaque strings, so it will store Readium Locator JSON without modification. However, the following updates are needed for correctness and to prevent future issues:
+
+### 1. Fix Zod Validation Schema (`src/lib/validation.ts`)
+
+The `updateBookSchema` is missing `current_page` and `total_pages`, which the frontend sends on every progress update. If this schema is ever enforced in the controller, progress sync will break.
+
+**Add to `updateBookSchema`:**
+```ts
+current_page: z.number().int().min(0).optional(),
+total_pages: z.number().int().min(1).optional(),
+```
+
+### 2. Rename Location Fields (Recommended)
+
+The fields `progress_cfi`, `cfi`, and `location` imply the old CFI format. Renaming them makes the schema format-agnostic:
+
+| Current Name | Recommended Name |
+|--------------|------------------|
+| `books.progress_cfi` | `books.progress_locator` |
+| `highlights.location` | `highlights.locator` |
+| `bookmarks.cfi` | `bookmarks.locator` |
+
+This requires:
+- A new Prisma migration to rename columns.
+- Updating `schema.prisma`, types, validation, services, and controllers.
+- Updating the frontend to use the new API field names.
+
+### 3. Consider JSONB for Structured Locators (Optional)
+
+If you plan to query highlights by chapter (`href`) or location range in the future, migrate the locator fields from `TEXT` to `JSONB` (Prisma `Json`). This enables database-level filtering and indexing with PostgreSQL GIN.
+
+### 4. Legacy Data Handling
+
+The backend **cannot** convert old `epub.js` CFI strings to Readium Locator JSON. The frontend must handle legacy data gracefully:
+- Catch `JSON.parse` errors when reading `progress_cfi`.
+- Fall back to `undefined` (start of book) if parsing fails.
+- Filter out or mark obsolete highlights/bookmarks that fail to parse.
+
+---
 
 adb install -r app/build/outputs/apk/release/app-release.apk

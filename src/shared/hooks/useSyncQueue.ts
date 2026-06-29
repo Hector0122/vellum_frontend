@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { api } from '@/shared/lib/api';
 import { useSyncQueueStore, type SyncOperation } from '@/stores/syncQueueStore';
-import { useLibraryStore } from '@/stores/libraryStore';
 import { useHighlightStore } from '@/stores/highlightStore';
 import { useBookmarkStore } from '@/stores/bookmarkStore';
 import { useNoteStore } from '@/stores/noteStore';
@@ -138,6 +137,17 @@ export function useSyncQueue() {
   const { queue, isProcessing, remove, incrementRetry, setProcessing } =
     useSyncQueueStore();
   const wasOfflineRef = useRef(false);
+
+  useEffect(() => {
+    NetInfo.fetch().then((state) => {
+      const connected =
+        state.isConnected && (state.type === 'wifi' || state.type === 'cellular');
+      if (connected && queue.length > 0 && !isProcessing) {
+        processQueue();
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {

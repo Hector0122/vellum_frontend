@@ -33,7 +33,24 @@ export const useLibraryStore = create<LibraryState>()(
         set({ loading: true });
         try {
           const data = await api.get<BooksResponse>('/api/books');
-          set({ books: data.books, loading: false });
+          const localBooks = get().books;
+          const merged = data.books.map((serverBook) => {
+            const local = localBooks.find((b) => b.id === serverBook.id);
+            if (local && local.last_opened_at && serverBook.last_opened_at &&
+                new Date(local.last_opened_at) > new Date(serverBook.last_opened_at)) {
+              return {
+                ...serverBook,
+                progress_percent: local.progress_percent ?? serverBook.progress_percent,
+                progress_cfi: local.progress_cfi ?? serverBook.progress_cfi,
+                current_page: local.current_page ?? serverBook.current_page,
+                total_pages: local.total_pages ?? serverBook.total_pages,
+                last_opened_at: local.last_opened_at,
+                status: local.status ?? serverBook.status,
+              };
+            }
+            return serverBook;
+          });
+          set({ books: merged, loading: false });
         } catch {
           // If fetch fails, keep existing persisted books in state
           set({ loading: false });

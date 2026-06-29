@@ -26,6 +26,16 @@ export async function getCachedEpubBase64(bookId: string): Promise<string | null
   }
 }
 
+export async function getCachedEpubPath(bookId: string): Promise<string | null> {
+  try {
+    const exists = await ReactNativeBlobUtil.fs.exists(cachePath(bookId));
+    if (!exists) return null;
+    return cachePath(bookId);
+  } catch {
+    return null;
+  }
+}
+
 export async function downloadAndCache(bookId: string): Promise<string> {
   const token = await AsyncStorage.getItem('auth_access_token');
   const url = `${API_URL}/api/books/${bookId}/file?token=${token}`;
