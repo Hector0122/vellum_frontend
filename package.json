@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
+    "android:build": "cd android && rm -rf app/.cxx ../node_modules/react-native-readium/android/.cxx && ./gradlew :app:assembleDebug",
+    "android:clean": "cd android && rm -rf app/.cxx ../node_modules/*/android/.cxx",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "postinstall": "patch-package",

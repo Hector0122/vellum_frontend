@@ -40,16 +40,22 @@ export async function downloadAndCache(bookId: string): Promise<string> {
   const token = await AsyncStorage.getItem('auth_access_token');
   const url = `${API_URL}/api/books/${bookId}/file?token=${token}`;
 
-  await ReactNativeBlobUtil.fs.mkdir(CACHE_DIR);
+  try {
+    await ReactNativeBlobUtil.fs.mkdir(CACHE_DIR);
+  } catch {}
 
-  await ReactNativeBlobUtil.config({
+  const res = await ReactNativeBlobUtil.config({
     path: cachePath(bookId),
   }).fetch('GET', url, {
     Authorization: `Bearer ${token}`,
   });
 
-  const base64 = await ReactNativeBlobUtil.fs.readFile(cachePath(bookId), 'base64');
-  return base64;
+  const status = res.respInfo?.status ?? 0;
+  if (status >= 200 && status < 300) {
+    return cachePath(bookId);
+  }
+
+  throw new Error(`Download failed with status ${status}`);
 }
 
 export async function removeCachedEpub(bookId: string) {

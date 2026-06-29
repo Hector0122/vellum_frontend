@@ -5,17 +5,18 @@ const KEY_SIZE = 'reader_font_size';
 const KEY_FAMILY = 'reader_font_family';
 
 const FONT_OPTIONS = [
-  { key: 'system-ui', label: 'System' },
-  { key: 'Georgia, serif', label: 'Serif' },
-  { key: 'Helvetica, Arial, sans-serif', label: 'Sans' },
+  { key: 'sans-serif', label: 'Sans' },
+  { key: 'serif', label: 'Serif' },
   { key: 'monospace', label: 'Mono' },
+  { key: 'OpenDyslexic', label: 'OpenDyslexic' },
+  { key: 'IA Writer Duospace', label: 'Duospace' },
 ];
 
-const SIZE_STEPS = [0.7, 0.85, 1, 1.2, 1.5, 2];
+const SIZE_STEPS = [0.7, 0.85, 1, 1.2, 1.5, 2, 2.5, 3];
 
 export function useFontPrefs() {
   const [fontSize, setFontSize] = useState(1);
-  const [fontFamily, setFontFamily] = useState('system-ui');
+  const [fontFamily, setFontFamily] = useState('sans-serif');
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -61,6 +62,6 @@ export function useFontPrefs() {
     increaseSize,
     decreaseSize,
     cycleFont,
-    fontLabel: FONT_OPTIONS.find((f) => f.key === fontFamily)?.label || 'System',
+    fontLabel: FONT_OPTIONS.find((f) => f.key === fontFamily)?.label || 'Sans',
   };
 }

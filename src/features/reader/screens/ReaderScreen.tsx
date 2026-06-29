@@ -58,11 +58,13 @@ import NetInfo from '@react-native-community/netinfo';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
 
-const THEME_OPTIONS: { label: string; value: Preferences['colorScheme'] }[] = [
-  { label: 'Light', value: 'light' },
-  { label: 'Sepia', value: 'sepia' },
-  { label: 'Dark', value: 'dark' },
-];
+const THEME_MAP: Record<string, { label: string; backgroundColor: string; textColor: string }> = {
+  light: { label: 'Light', backgroundColor: '#ffffff', textColor: '#000000' },
+  sepia: { label: 'Sepia', backgroundColor: '#f4ecd8', textColor: '#5f4b32' },
+  dark: { label: 'Dark', backgroundColor: '#000000', textColor: '#ffffff' },
+};
+
+const THEME_OPTIONS = Object.entries(THEME_MAP).map(([value, { label }]) => ({ label, value }));
 
 const FLATLIST_CONFIG = {
   initialNumToRender: 8,
@@ -111,7 +113,7 @@ export function ReaderScreen() {
   const [overallProgress, setOverallProgress] = useState(0);
   const [file, setFile] = useState<ReadiumFile | null>(null);
   const [decorations, setDecorations] = useState<DecorationGroup[]>([]);
-  const [theme, setTheme] = useState<Preferences['colorScheme']>('sepia');
+  const [theme, setTheme] = useState<string>('sepia');
   const [showChapters, setShowChapters] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
@@ -180,7 +182,8 @@ export function ReaderScreen() {
       } else {
         try {
           path = await downloadAndCache(bookId);
-        } catch {
+        } catch (e) {
+          console.error('Failed to download book:', e);
           setReaderError('Failed to download book');
           return;
         }
@@ -231,7 +234,7 @@ export function ReaderScreen() {
   const handlePublicationReady = useCallback(
     (event: PublicationReadyEvent) => {
       setReady(true);
-      setPositions(event.positions);
+      setPositions({ totalCount: event.positions.length });
       fetchBookmarks(bookId);
 
       try {
@@ -265,13 +268,17 @@ export function ReaderScreen() {
     (locator: Locator) => {
       currentLocatorRef.current = locator;
       const position = locator.locations?.position ?? 0;
-      const total = positions?.totalCount ?? 1;
-      const percent = total > 0 ? Math.round((position / total) * 100) : 0;
+      const total = positions?.totalCount ?? 0;
+      const percent = total > 0
+        ? Math.min(Math.round((position / total) * 100), 100)
+        : locator.locations?.totalProgression
+          ? Math.round(locator.locations.totalProgression * 100)
+          : 0;
 
       setCurrentPosition(position);
       setOverallProgress(percent);
 
-      if (book && percent >= 0) {
+      if (book && total > 0) {
         const locatorStr = JSON.stringify(locator);
         lastProgressRef.current = { percent, locator: locatorStr };
         if (progressTimeoutRef.current) clearTimeout(progressTimeoutRef.current);
@@ -389,7 +396,7 @@ export function ReaderScreen() {
 
   const handleGoToChapter = useCallback(
     (href: string) => {
-      readiumRef.current?.goTo({ href });
+      readiumRef.current?.goTo({ href, type: 'application/xhtml+xml' });
       setShowOverlay(false);
       setShowChapters(false);
     },
@@ -563,9 +570,11 @@ export function ReaderScreen() {
 
   const preferences: Partial<Preferences> = useMemo(
     () => ({
-      colorScheme: theme,
-      fontSize: fontSize * 100,
-      fontFamily,
+      theme: theme as Preferences['theme'],
+      backgroundColor: THEME_MAP[theme]?.backgroundColor,
+      textColor: THEME_MAP[theme]?.textColor,
+      typeScale: fontSize,
+      fontFamily: fontFamily as Preferences['fontFamily'],
     }),
     [theme, fontSize, fontFamily],
   );
@@ -624,7 +633,7 @@ export function ReaderScreen() {
 
       {ready && (
         <TouchableOpacity
-          style={[styles.fab, { bottom: insets.bottom + 16 }]}
+          style={[styles.fab, { top: insets.top + 8 }]}
           onPress={toggleOverlay}
           activeOpacity={0.8}
         >
@@ -654,7 +663,7 @@ export function ReaderScreen() {
                 <Text style={styles.fontBtnText}>A−</Text>
               </TouchableOpacity>
               <Text style={styles.fontSizeLabel}>
-                {Math.round(fontSize * 100)}%
+                Zoom {Math.round(fontSize * 100)}%
               </Text>
               <TouchableOpacity style={styles.fontBtn} onPress={increaseSize}>
                 <Text style={styles.fontBtnText}>A+</Text>

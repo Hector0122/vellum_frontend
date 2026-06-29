@@ -66,7 +66,8 @@ export const useLibraryStore = create<LibraryState>()(
       updateProgress: async (bookId: string, progress: number, cfi?: string, currentPage?: number, totalPages?: number) => {
         if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, cfi, currentPage, totalPages);
 
-        const newStatus = progress >= 100 ? 'read' : 'reading';
+        const clamped = Math.min(progress, 100);
+        const newStatus = clamped >= 100 ? 'read' : 'reading';
 
         // Optimistic update
         const { books } = get();
@@ -75,7 +76,7 @@ export const useLibraryStore = create<LibraryState>()(
             b.id === bookId
               ? {
                   ...b,
-                  progress_percent: progress,
+                  progress_percent: clamped,
                   progress_cfi: cfi,
                   current_page: currentPage ?? b.current_page,
                   total_pages: totalPages ?? b.total_pages,
@@ -88,7 +89,7 @@ export const useLibraryStore = create<LibraryState>()(
 
         try {
           await api.patch<BookResponse>(`/api/books/${bookId}`, {
-            progress_percent: progress,
+            progress_percent: clamped,
             progress_cfi: cfi ?? null,
             current_page: currentPage,
             total_pages: totalPages,
