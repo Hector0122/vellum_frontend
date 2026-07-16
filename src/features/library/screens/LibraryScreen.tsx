@@ -66,7 +66,7 @@ export function LibraryScreen() {
 
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterMode>('all');
+  const [filter, setFilter] = useState<FilterMode>('reading');
   const [sort, setSort] = useState<SortMode>('last');
   const [showSort, setShowSort] = useState(false);
   const [contextBook, setContextBook] = useState<Book | null>(null);
@@ -155,7 +155,6 @@ export function LibraryScreen() {
             new Date(b.last_opened_at || b.created_at).getTime() -
             new Date(a.last_opened_at || a.created_at).getTime(),
         );
-        result.reverse();
         break;
     }
 
@@ -363,7 +362,7 @@ export function LibraryScreen() {
           {/* Filters + Sort */}
           <View style={styles.toolbar}>
             <View style={styles.filterRow}>
-              {(['all', 'reading', 'unread', 'read'] as FilterMode[]).map(f => (
+              {(['reading', 'all', 'unread', 'read'] as FilterMode[]).map(f => (
                 <TouchableOpacity
                   key={f}
                   style={[styles.chip, filter === f && styles.chipActive]}

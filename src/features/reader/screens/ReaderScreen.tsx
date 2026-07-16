@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -51,10 +52,8 @@ import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
 import { useReadingStats } from '@/shared/hooks/useReadingStats';
-import { useSyncQueueStore } from '@/stores/syncQueueStore';
 import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList } from '@/types';
-import NetInfo from '@react-native-community/netinfo';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
 
@@ -122,7 +121,6 @@ export function ReaderScreen() {
   const [theme, setTheme] = useState<string>('sepia');
   const [showChapters, setShowChapters] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [isConnected, setIsConnected] = useState(true);
 
   const readiumRef = useRef<ReadiumViewRef>(null);
   const currentLocatorRef = useRef<Locator | null>(null);
@@ -144,7 +142,6 @@ export function ReaderScreen() {
   const fetchBookmarks = useBookmarkStore(s => s.fetchBookmarks);
   const addBookmark = useBookmarkStore(s => s.addBookmark);
   const removeBookmark = useBookmarkStore(s => s.removeBookmark);
-  const syncQueue = useSyncQueueStore(s => s.queue);
 
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const captureResponder = useCallback(() => true, []);
@@ -170,13 +167,6 @@ export function ReaderScreen() {
       navigation.goBack();
     }
   }, [book, navigation]);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(!!state.isConnected);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     fetchHighlights(bookId);
@@ -581,8 +571,9 @@ export function ReaderScreen() {
       theme: theme as Preferences['theme'],
       backgroundColor: THEME_MAP[theme]?.backgroundColor,
       textColor: THEME_MAP[theme]?.textColor,
-      typeScale: fontSize,
+      fontSize,
       fontFamily: fontFamily as Preferences['fontFamily'],
+      publisherStyles: false,
     }),
     [theme, fontSize, fontFamily],
   );
@@ -601,8 +592,18 @@ export function ReaderScreen() {
     );
   }
 
+  const themeBg = THEME_MAP[theme]?.backgroundColor || '#ffffff';
+  const isDarkTheme = theme === 'dark';
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: themeBg }]}
+      edges={['top', 'bottom']}
+    >
+      <StatusBar
+        barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
+        backgroundColor={themeBg}
+      />
       {fontPrefsLoaded && file && (
         <ReadiumView
           ref={readiumRef}
@@ -616,14 +617,6 @@ export function ReaderScreen() {
           onSelectionAction={handleSelectionAction}
           onDecorationActivated={handleDecorationActivated}
         />
-      )}
-
-      {(!isConnected || syncQueue.length > 0) && (
-        <View style={[styles.statusBadge, { top: insets.top + 8 }]}>
-          <Text style={styles.statusBadgeText}>
-            {!isConnected ? 'Offline' : `${syncQueue.length} pending`}
-          </Text>
-        </View>
       )}
 
       {ready && positions && (
@@ -645,7 +638,7 @@ export function ReaderScreen() {
           onPress={toggleOverlay}
           activeOpacity={0.8}
         >
-          <Icon name="dots-vertical" size={24} color="#fff" />
+          <Icon name="dots-vertical" size={22} color="#ffffff" />
         </TouchableOpacity>
       )}
 
@@ -842,16 +835,16 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accent,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
     zIndex: 999,
   },
@@ -991,21 +984,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
     marginTop: 8,
-  },
-  statusBadge: {
-    position: 'absolute',
-    right: 12,
-    zIndex: 999,
-    elevation: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  statusBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
   },
   pageBadge: {
     position: 'absolute',
