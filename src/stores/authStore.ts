@@ -22,7 +22,12 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  confirmPasswordReset: (
+    email: string,
+    code: string,
+    newPassword: string,
+  ) => Promise<void>;
   loadSession: () => Promise<void>;
 }
 
@@ -78,7 +83,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, session: false });
   },
 
-  resetPassword: async (email: string) => {
-    await api.post('/api/auth/reset-password', { email });
+  requestPasswordReset: async (email: string) => {
+    await api.post('/api/auth/forgot-password', { email });
+  },
+
+  confirmPasswordReset: async (email: string, code: string, newPassword: string) => {
+    await api.post('/api/auth/reset-password', { email, code, newPassword });
   },
 }));

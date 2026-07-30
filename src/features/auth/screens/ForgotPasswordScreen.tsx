@@ -18,21 +18,39 @@ import { colors } from '@/shared/theme/colors';
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 export function ForgotPasswordScreen({ navigation }: Props) {
-  const { resetPassword } = useAuth();
+  const { requestPasswordReset, confirmPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleReset = async () => {
+  const handleRequestCode = async () => {
     if (!email) return;
-    setLoading(true);
+    setRequestLoading(true);
     try {
-      await resetPassword(email);
+      await requestPasswordReset(email);
       setSent(true);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
-      setLoading(false);
+      setRequestLoading(false);
+    }
+  };
+
+  const handleConfirmReset = async () => {
+    if (!code || !newPassword) return;
+    setConfirmLoading(true);
+    try {
+      await confirmPasswordReset(email, code.trim(), newPassword);
+      Alert.alert('Success', 'Your password has been reset. Please sign in.', [
+        { text: 'OK', onPress: () => navigation.navigate('SignIn') },
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -48,22 +66,44 @@ export function ForgotPasswordScreen({ navigation }: Props) {
         <View style={styles.header}>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
-            Enter your email and we'll send you a reset link
+            {sent
+              ? `Enter the code we sent to ${email}`
+              : "Enter your email and we'll send you a reset code"}
           </Text>
         </View>
 
         <View style={styles.form}>
           {sent ? (
-            <View style={styles.sentContainer}>
-              <Text style={styles.sentText}>
-                If an account exists for {email}, you'll receive a password
-                reset link shortly.
-              </Text>
-              <Button
-                title="Back to Sign In"
-                onPress={() => navigation.navigate('SignIn')}
+            <>
+              <Input
+                label="Reset Code"
+                placeholder="123456"
+                keyboardType="number-pad"
+                maxLength={6}
+                value={code}
+                onChangeText={setCode}
               />
-            </View>
+              <Input
+                label="New Password"
+                placeholder="At least 8 characters"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+              <Button
+                title="Reset Password"
+                loading={confirmLoading}
+                onPress={handleConfirmReset}
+              />
+              <Button
+                title="Resend Code"
+                variant="secondary"
+                loading={requestLoading}
+                onPress={handleRequestCode}
+              />
+            </>
           ) : (
             <>
               <Input
@@ -76,9 +116,9 @@ export function ForgotPasswordScreen({ navigation }: Props) {
                 onChangeText={setEmail}
               />
               <Button
-                title="Send Reset Link"
-                loading={loading}
-                onPress={handleReset}
+                title="Send Reset Code"
+                loading={requestLoading}
+                onPress={handleRequestCode}
               />
             </>
           )}
@@ -116,15 +156,5 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
-  },
-  sentContainer: {
-    alignItems: 'center',
-    gap: 24,
-  },
-  sentText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

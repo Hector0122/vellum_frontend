@@ -9,7 +9,8 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
-    resetPassword,
+    requestPasswordReset,
+    confirmPasswordReset,
     loadSession,
   } = useAuthStore();
 
@@ -33,11 +34,18 @@ export function useAuth() {
     await signOut();
   }, [signOut]);
 
-  const handleResetPassword = useCallback(
+  const handleRequestPasswordReset = useCallback(
     async (email: string) => {
-      await resetPassword(email);
+      await requestPasswordReset(email);
     },
-    [resetPassword],
+    [requestPasswordReset],
+  );
+
+  const handleConfirmPasswordReset = useCallback(
+    async (email: string, code: string, newPassword: string) => {
+      await confirmPasswordReset(email, code, newPassword);
+    },
+    [confirmPasswordReset],
   );
 
   return {
@@ -47,7 +55,8 @@ export function useAuth() {
     signIn: handleSignIn,
     signUp: handleSignUp,
     signOut: handleSignOut,
-    resetPassword: handleResetPassword,
+    requestPasswordReset: handleRequestPasswordReset,
+    confirmPasswordReset: handleConfirmPasswordReset,
     loadSession,
   };
 }
