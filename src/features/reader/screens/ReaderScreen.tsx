@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
+  ScrollView,
   Alert,
   StatusBar,
 } from 'react-native';
@@ -47,6 +48,10 @@ import {
   downloadAndCache,
 } from '@/shared/lib/epubCache';
 import { useFontPrefs } from '@/shared/hooks/useFontPrefs';
+import {
+  useChapterSummary,
+  parseSummaryBullets,
+} from '@/features/reader/hooks/useChapterSummary';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
@@ -121,6 +126,7 @@ export function ReaderScreen() {
   const [theme, setTheme] = useState<string>('sepia');
   const [showChapters, setShowChapters] = useState(false);
   const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   const readiumRef = useRef<ReadiumViewRef>(null);
   const currentLocatorRef = useRef<Locator | null>(null);
@@ -142,6 +148,13 @@ export function ReaderScreen() {
   const fetchBookmarks = useBookmarkStore(s => s.fetchBookmarks);
   const addBookmark = useBookmarkStore(s => s.addBookmark);
   const removeBookmark = useBookmarkStore(s => s.removeBookmark);
+  const {
+    loading: summaryLoading,
+    error: summaryError,
+    summary,
+    fetchSummary,
+    reset: resetSummary,
+  } = useChapterSummary(bookId);
 
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const captureResponder = useCallback(() => true, []);
@@ -400,6 +413,24 @@ export function ReaderScreen() {
     },
     [],
   );
+
+  const handleShowSummary = useCallback(() => {
+    const currentHref = currentLocatorRef.current?.href;
+    if (!currentHref) {
+      showToast('error', 'Open a chapter before requesting a summary');
+      return;
+    }
+
+    const normalized = currentHref.split('#')[0];
+    const chapterIndex = toc.findIndex(
+      (t) => t.href.split('#')[0] === normalized,
+    );
+
+    resetSummary();
+    setShowOverlay(false);
+    setShowSummary(true);
+    fetchSummary(chapterIndex >= 0 ? chapterIndex : 0, currentHref);
+  }, [toc, resetSummary, fetchSummary]);
 
   const handleGoToHighlight = useCallback(
     (location: string) => {
@@ -713,6 +744,13 @@ export function ReaderScreen() {
                   Highlights ({highlights.length})
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={handleShowSummary}
+              >
+                <Icon name="auto-fix" size={16} color={colors.success} />
+                <Text style={styles.actionBtnText}>AI Summary</Text>
+              </TouchableOpacity>
             </View>
           </Animated.View>
         </View>
@@ -769,6 +807,48 @@ export function ReaderScreen() {
                 renderItem={renderBookmarkItem}
                 style={styles.chaptersList}
               />
+            )}
+          </Animated.View>
+        </View>
+      )}
+
+      {/* AI Summary */}
+      {showSummary && (
+        <View style={absoluteFillEnd}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowSummary(false)}
+          />
+          <Animated.View
+            entering={FadeIn.springify()}
+            exiting={FadeOut}
+            style={[styles.chaptersPanel, panelPadding]}
+            onStartShouldSetResponder={captureResponder}
+          >
+            <View style={styles.panelHandle} />
+            <View style={styles.summaryHeader}>
+              <Icon name="auto-fix" size={18} color={colors.success} />
+              <Text style={styles.chaptersTitle}>AI Summary</Text>
+            </View>
+            {summaryLoading && (
+              <View style={styles.summaryLoading}>
+                <ActivityIndicator color={colors.success} />
+                <Text style={styles.noHighlights}>Generating summary…</Text>
+              </View>
+            )}
+            {!summaryLoading && summaryError && (
+              <Text style={styles.summaryError}>{summaryError}</Text>
+            )}
+            {!summaryLoading && !summaryError && summary && (
+              <ScrollView style={styles.summaryScroll}>
+                {parseSummaryBullets(summary).map((bullet, i) => (
+                  <View key={i} style={styles.summaryBulletRow}>
+                    <Text style={styles.summaryBulletDot}>•</Text>
+                    <Text style={styles.summaryBulletText}>{bullet}</Text>
+                  </View>
+                ))}
+              </ScrollView>
             )}
           </Animated.View>
         </View>
@@ -1028,6 +1108,43 @@ const styles = StyleSheet.create({
   },
   chaptersList: {
     maxHeight: 200,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  summaryLoading: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 12,
+  },
+  summaryError: {
+    color: colors.error,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  summaryScroll: {
+    maxHeight: 350,
+  },
+  summaryBulletRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  summaryBulletDot: {
+    color: colors.success,
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  summaryBulletText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 21,
   },
   chapterItem: {
     paddingVertical: 10,
