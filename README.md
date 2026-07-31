@@ -85,7 +85,7 @@ Book {
   status        // unread | reading | read (auto-read at 100%)
   genres        // string[] extracted by AI
   progress_percent
-  progress_cfi
+  progress_locator
   last_opened_at
   created_at
 }
@@ -135,7 +135,7 @@ Highlight {
   user_id
   book_id
   text
-  location
+  locator
   color
   created_at
 }
@@ -288,7 +288,7 @@ file_type
 status       // unread | reading | read
 genres       // string[] catálogo controlado
 progress_percent
-progress_cfi
+progress_locator
 last_opened_at
 created_at
 ```
@@ -300,7 +300,7 @@ id
 user_id
 book_id
 text
-location
+locator
 color
 created_at
 ```
@@ -464,45 +464,12 @@ Powerful over time.
 - New highlights, bookmarks, and progress saved after this migration will work correctly.
 - If you encounter "Invalid bookmark location" or missing highlights, the item was created before the migration and is now obsolete.
 
-## Backend Changes Required
+## Backend Changes (status)
 
-The backend currently treats location fields as opaque strings, so it will store Readium Locator JSON without modification. However, the following updates are needed for correctness and to prevent future issues:
-
-### 1. Fix Zod Validation Schema (`src/lib/validation.ts`)
-
-The `updateBookSchema` is missing `current_page` and `total_pages`, which the frontend sends on every progress update. If this schema is ever enforced in the controller, progress sync will break.
-
-**Add to `updateBookSchema`:**
-```ts
-current_page: z.number().int().min(0).optional(),
-total_pages: z.number().int().min(1).optional(),
-```
-
-### 2. Rename Location Fields (Recommended)
-
-The fields `progress_cfi`, `cfi`, and `location` imply the old CFI format. Renaming them makes the schema format-agnostic:
-
-| Current Name | Recommended Name |
-|--------------|------------------|
-| `books.progress_cfi` | `books.progress_locator` |
-| `highlights.location` | `highlights.locator` |
-| `bookmarks.cfi` | `bookmarks.locator` |
-
-This requires:
-- A new Prisma migration to rename columns.
-- Updating `schema.prisma`, types, validation, services, and controllers.
-- Updating the frontend to use the new API field names.
-
-### 3. Consider JSONB for Structured Locators (Optional)
-
-If you plan to query highlights by chapter (`href`) or location range in the future, migrate the locator fields from `TEXT` to `JSONB` (Prisma `Json`). This enables database-level filtering and indexing with PostgreSQL GIN.
-
-### 4. Legacy Data Handling
-
-The backend **cannot** convert old `epub.js` CFI strings to Readium Locator JSON. The frontend must handle legacy data gracefully:
-- Catch `JSON.parse` errors when reading `progress_cfi`.
-- Fall back to `undefined` (start of book) if parsing fails.
-- Filter out or mark obsolete highlights/bookmarks that fail to parse.
+- ✅ **Zod validation schema fixed** — `updateBookSchema` includes `current_page`/`total_pages` and enforcement is wired in via `validateBody` middleware.
+- ✅ **Location fields renamed** — `books.progress_cfi` → `progress_locator`, `highlights.location` → `locator`, `bookmarks.cfi` → `locator`, across `schema.prisma`, types, validation, services, controllers, and the frontend. Existing rows were migrated in place via a data-preserving `RENAME COLUMN` (see `prisma/migrations/0005_locator_field_rename`), not a drop-and-recreate.
+- ✅ **Legacy data handling** — the frontend never crashes on a pre-migration CFI string. All parsing goes through a single shared `parseLocator()` helper (`src/features/reader/utils/parseLocator.ts`, unit tested) that returns `null` on anything that isn't valid Locator JSON; callers fall back to "start of book" or a friendly toast rather than throwing.
+- ⬜ **JSONB for structured locators (optional, not done)** — if chapter/range queries over locators become needed, migrate the `locator`/`progress_locator` columns from `TEXT` to `JSONB` (Prisma `Json`) for database-level filtering and GIN indexing. Not required for anything currently built.
 
 ---
 
