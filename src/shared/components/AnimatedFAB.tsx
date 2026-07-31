@@ -23,7 +23,7 @@ const AnimatedFABInner = ({
   onPress,
   icon,
   color = colors.white,
-  backgroundColor = '#FF6B35',
+  backgroundColor = colors.streak,
 }: AnimatedFABProps) => {
   const scale = useSharedValue(0);
   const rotation = useSharedValue(0);

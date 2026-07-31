@@ -46,6 +46,12 @@ async function processOperation(op: SyncOperation): Promise<boolean> {
         return true;
       }
 
+      case 'DELETE_BOOK': {
+        const { bookId } = op.payload as { bookId: string };
+        await api.delete(`/api/books/${bookId}`);
+        return true;
+      }
+
       case 'CREATE_HIGHLIGHT': {
         const { bookId, text, location, color, tempId } = op.payload as {
           bookId: string;

@@ -36,7 +36,7 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
             </Text>
             {item.status === 'read' && (
               <View style={styles.readBadge}>
-                <Icon name="check-circle" size={14} color={colors.success || '#10B981'} />
+                <Icon name="check-circle" size={14} color={colors.readIndicator} />
               </View>
             )}
           </View>

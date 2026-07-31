@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type SyncOperationType =
   | 'UPDATE_PROGRESS'
+  | 'DELETE_BOOK'
   | 'CREATE_HIGHLIGHT'
   | 'DELETE_HIGHLIGHT'
   | 'CREATE_BOOKMARK'

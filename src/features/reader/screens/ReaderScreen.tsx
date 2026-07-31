@@ -669,7 +669,7 @@ export function ReaderScreen() {
           onPress={toggleOverlay}
           activeOpacity={0.8}
         >
-          <Icon name="dots-vertical" size={22} color="#ffffff" />
+          <Icon name="dots-vertical" size={22} color={colors.white} />
         </TouchableOpacity>
       )}
 
@@ -744,14 +744,15 @@ export function ReaderScreen() {
                   Highlights ({highlights.length})
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={handleShowSummary}
-              >
-                <Icon name="auto-fix" size={16} color={colors.success} />
-                <Text style={styles.actionBtnText}>AI Summary</Text>
-              </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={styles.aiSummaryBtn}
+              onPress={handleShowSummary}
+            >
+              <Icon name="auto-fix" size={18} color={colors.success} />
+              <Text style={styles.aiSummaryBtnText}>AI Summary</Text>
+            </TouchableOpacity>
           </Animated.View>
         </View>
       )}
@@ -823,7 +824,7 @@ export function ReaderScreen() {
           <Animated.View
             entering={FadeIn.springify()}
             exiting={FadeOut}
-            style={[styles.chaptersPanel, panelPadding]}
+            style={[styles.summaryPanel, panelPadding]}
             onStartShouldSetResponder={captureResponder}
           >
             <View style={styles.panelHandle} />
@@ -841,7 +842,11 @@ export function ReaderScreen() {
               <Text style={styles.summaryError}>{summaryError}</Text>
             )}
             {!summaryLoading && !summaryError && summary && (
-              <ScrollView style={styles.summaryScroll}>
+              <ScrollView
+                style={styles.summaryScroll}
+                showsVerticalScrollIndicator
+                nestedScrollEnabled
+              >
                 {parseSummaryBullets(summary).map((bullet, i) => (
                   <View key={i} style={styles.summaryBulletRow}>
                     <Text style={styles.summaryBulletDot}>•</Text>
@@ -1012,6 +1017,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
+  aiSummaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.accentSoft,
+  },
+  aiSummaryBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
   highlightsPanel: {
     position: 'absolute',
     top: 0,
@@ -1101,6 +1121,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
   },
+  summaryPanel: {
+    backgroundColor: colors.elevated,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 12,
+    maxHeight: '75%',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
   chaptersTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -1128,7 +1162,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryScroll: {
-    maxHeight: 350,
+    flex: 1,
   },
   summaryBulletRow: {
     flexDirection: 'row',

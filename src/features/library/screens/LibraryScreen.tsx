@@ -326,7 +326,7 @@ export function LibraryScreen() {
                 <Icon
                   name="fire"
                   size={18}
-                  color={streak > 0 ? '#FF6B35' : colors.textMuted}
+                  color={streak > 0 ? colors.streak : colors.textMuted}
                 />
                 {streak > 0 && (
                   <Text style={styles.streakText}>{streak}</Text>
@@ -487,7 +487,7 @@ export function LibraryScreen() {
             <View style={styles.contextMenu}>
               {contextBook && contextBook.status !== 'read' && (
                 <TouchableOpacity style={styles.contextOption} onPress={handleMarkAsRead}>
-                  <Icon name="check-circle-outline" size={22} color="#10B981" />
+                  <Icon name="check-circle-outline" size={22} color={colors.readIndicator} />
                   <Text style={styles.contextOptionText}>Marcar como leído</Text>
                 </TouchableOpacity>
               )}
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   streakText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FF6B35',
+    color: colors.streak,
   },
   headerActions: {
     flexDirection: 'row',

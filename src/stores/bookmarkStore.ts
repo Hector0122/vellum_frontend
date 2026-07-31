@@ -19,8 +19,9 @@ function generateTempId(): string {
 
 interface BookmarkState {
   bookmarks: Bookmark[];
+  total: number;
   loading: boolean;
-  fetchBookmarks: (bookId: string) => Promise<void>;
+  fetchBookmarks: (bookId: string, limit?: number, offset?: number) => Promise<void>;
   addBookmark: (bookId: string, cfi: string, label?: string) => Promise<void>;
   removeBookmark: (bookId: string, bookmarkId: string) => Promise<void>;
   replaceTempId: (tempId: string, realId: string) => void;
@@ -30,13 +31,16 @@ export const useBookmarkStore = create<BookmarkState>()(
   persist(
     (set, get) => ({
       bookmarks: [],
+      total: 0,
       loading: false,
 
-      fetchBookmarks: async (bookId: string) => {
+      fetchBookmarks: async (bookId: string, limit = 100, offset = 0) => {
         set({ loading: true });
         try {
-          const data = await api.get<{ bookmarks: Bookmark[] }>('/api/books/' + bookId + '/bookmarks');
-          set({ bookmarks: data.bookmarks, loading: false });
+          const data = await api.get<{ bookmarks: Bookmark[]; total: number }>(
+            `/api/books/${bookId}/bookmarks?limit=${limit}&offset=${offset}`,
+          );
+          set({ bookmarks: data.bookmarks, total: data.total, loading: false });
         } catch {
           set({ loading: false });
         }

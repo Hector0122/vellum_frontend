@@ -36,6 +36,9 @@ export const colors = {
   toastSuccessBg: '#ECF5EF',
   toastErrorBg: '#F9ECEC',
   toastInfoBg: '#EEF1F5',
+
+  streak: '#FF6B35',
+  readIndicator: '#10B981',
 } as const;
 
 export type ColorKey = keyof typeof colors;

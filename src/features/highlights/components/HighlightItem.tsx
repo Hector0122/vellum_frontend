@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   highlightText: {
     flex: 1,
-    color: '#D0D0E0',
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
   },

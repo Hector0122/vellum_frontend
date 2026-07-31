@@ -58,9 +58,22 @@ export const useLibraryStore = create<LibraryState>()(
       },
 
       deleteBook: async (bookId: string) => {
-        await api.delete(`/api/books/${bookId}`);
-        const { books } = get();
-        set({ books: books.filter((b) => b.id !== bookId) });
+        const previous = get().books;
+        set({ books: previous.filter((b) => b.id !== bookId) });
+
+        try {
+          await api.delete(`/api/books/${bookId}`);
+        } catch (e) {
+          if (isNetworkError(e)) {
+            useSyncQueueStore.getState().add({
+              type: 'DELETE_BOOK',
+              payload: { bookId },
+            });
+          } else {
+            set({ books: previous });
+            throw e;
+          }
+        }
       },
 
       updateProgress: async (bookId: string, progress: number, cfi?: string, currentPage?: number, totalPages?: number) => {
