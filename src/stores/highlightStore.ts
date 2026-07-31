@@ -29,7 +29,7 @@ interface HighlightState {
   allHasMore: boolean;
   fetchHighlights: (bookId: string) => Promise<void>;
   fetchAllHighlights: (reset?: boolean) => Promise<void>;
-  createHighlight: (bookId: string, text: string, location: string, color?: string) => Promise<void>;
+  createHighlight: (bookId: string, text: string, locator: string, color?: string) => Promise<void>;
   deleteHighlight: (bookId: string, highlightId: string) => Promise<void>;
   replaceTempId: (tempId: string, realId: string) => void;
 }
@@ -80,14 +80,14 @@ export const useHighlightStore = create<HighlightState>()(
         }
       },
 
-      createHighlight: async (bookId: string, text: string, location: string, color = '#FFD700') => {
+      createHighlight: async (bookId: string, text: string, locator: string, color = '#FFD700') => {
         const tempId = generateTempId();
         const optimistic: Highlight = {
           id: tempId,
           user_id: '', // unknown until sync
           book_id: bookId,
           text,
-          location,
+          locator,
           color,
           created_at: new Date().toISOString(),
         };
@@ -97,7 +97,7 @@ export const useHighlightStore = create<HighlightState>()(
         try {
           const data = await api.post<HighlightResponse>(`/api/books/${bookId}/highlights`, {
             text,
-            location,
+            locator,
             color,
           });
           set({
@@ -109,7 +109,7 @@ export const useHighlightStore = create<HighlightState>()(
           if (isNetworkError(e)) {
             useSyncQueueStore.getState().add({
               type: 'CREATE_HIGHLIGHT',
-              payload: { bookId, text, location, color, tempId },
+              payload: { bookId, text, locator, color, tempId },
             });
           } else {
             // Non-network error: remove optimistic highlight

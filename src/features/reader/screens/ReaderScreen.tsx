@@ -28,7 +28,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ReadiumView } from 'react-native-readium';
 import type {
   ReadiumViewRef,
-  Locator,
   File as ReadiumFile,
   PublicationReadyEvent,
   SelectionAction,
@@ -52,11 +51,13 @@ import {
   useChapterSummary,
   parseSummaryBullets,
 } from '@/features/reader/hooks/useChapterSummary';
+import { parseLocator } from '@/features/reader/utils/parseLocator';
+import { useReaderSession } from '@/features/reader/hooks/useReaderSession';
+import { useLocatorPersistence } from '@/features/reader/hooks/useLocatorPersistence';
 import { HighlightItem } from '@/features/highlights/components/HighlightItem';
 import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
-import { useReadingStats } from '@/shared/hooks/useReadingStats';
 import { colors } from '@/shared/theme/colors';
 import type { RootStackParamList } from '@/types';
 
@@ -119,8 +120,6 @@ export function ReaderScreen() {
   const [readerError, setReaderError] = useState<string | null>(null);
   const [toc, setToc] = useState<{ label: string; href: string; depth: number }[]>([]);
   const [positions, setPositions] = useState<{ totalCount: number } | null>(null);
-  const [currentPosition, setCurrentPosition] = useState(0);
-  const [overallProgress, setOverallProgress] = useState(0);
   const [file, setFile] = useState<ReadiumFile | null>(null);
   const [decorations, setDecorations] = useState<DecorationGroup[]>([]);
   const [theme, setTheme] = useState<string>('sepia');
@@ -129,10 +128,6 @@ export function ReaderScreen() {
   const [showSummary, setShowSummary] = useState(false);
 
   const readiumRef = useRef<ReadiumViewRef>(null);
-  const currentLocatorRef = useRef<Locator | null>(null);
-  const progressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastProgressRef = useRef<{ percent: number; locator: string } | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
 
   const {
     fontSize,
@@ -143,7 +138,6 @@ export function ReaderScreen() {
     fontLabel,
     loaded: fontPrefsLoaded,
   } = useFontPrefs();
-  const { startSession, endSession } = useReadingStats();
   const bookmarks = useBookmarkStore(s => s.bookmarks);
   const fetchBookmarks = useBookmarkStore(s => s.fetchBookmarks);
   const addBookmark = useBookmarkStore(s => s.addBookmark);
@@ -157,6 +151,20 @@ export function ReaderScreen() {
   } = useChapterSummary(bookId);
 
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
+
+  useReaderSession(bookId);
+  const {
+    currentLocatorRef,
+    currentPosition,
+    overallProgress,
+    handleLocationChange,
+  } = useLocatorPersistence({
+    bookId,
+    book,
+    totalCount: positions?.totalCount ?? 0,
+    updateProgress,
+  });
+
   const captureResponder = useCallback(() => true, []);
   const absoluteFillEnd = useMemo(
     () => ({ ...StyleSheet.absoluteFill, justifyContent: 'flex-end' as const }),
@@ -204,43 +212,11 @@ export function ReaderScreen() {
         return;
       }
 
-      const initialLocation: Locator | undefined = book?.progress_cfi
-        ? (() => {
-            try {
-              return JSON.parse(book.progress_cfi) as Locator;
-            } catch {
-              return undefined;
-            }
-          })()
-        : undefined;
+      const initialLocation = parseLocator(book?.progress_locator) ?? undefined;
 
       setFile({ url: makeFileUrl(path), initialLocation });
     })();
   }, [bookId, fetchHighlights, fetchNotes, book]);
-
-  useEffect(() => {
-    analytics.trackReaderOpen(bookId);
-    analytics.trackPageView('Reader');
-  }, [bookId]);
-
-  useEffect(() => {
-    return () => {
-      if (progressTimeoutRef.current) clearTimeout(progressTimeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const id = await startSession(bookId);
-      if (!cancelled) sessionIdRef.current = id;
-    })();
-    return () => {
-      cancelled = true;
-      endSession(sessionIdRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookId]);
 
   const handlePublicationReady = useCallback(
     (event: PublicationReadyEvent) => {
@@ -257,48 +233,19 @@ export function ReaderScreen() {
 
       const hlDecorations: Decoration[] = highlights
         .map((h) => {
-          try {
-            const locator = JSON.parse(h.location) as Locator;
-            return {
-              id: h.id,
-              locator,
-              style: { type: 'highlight' as const, tint: h.color },
-            };
-          } catch {
-            return null;
-          }
+          const locator = parseLocator(h.locator);
+          if (!locator) return null;
+          return {
+            id: h.id,
+            locator,
+            style: { type: 'highlight' as const, tint: h.color },
+          };
         })
         .filter(Boolean) as Decoration[];
 
       setDecorations([{ name: 'highlights', decorations: hlDecorations }]);
     },
     [fetchBookmarks, bookId, highlights],
-  );
-
-  const handleLocationChange = useCallback(
-    (locator: Locator) => {
-      currentLocatorRef.current = locator;
-      const position = locator.locations?.position ?? 0;
-      const total = positions?.totalCount ?? 0;
-      const percent = total > 0
-        ? Math.min(Math.round((position / total) * 100), 100)
-        : locator.locations?.totalProgression
-          ? Math.round(locator.locations.totalProgression * 100)
-          : 0;
-
-      setCurrentPosition(position);
-      setOverallProgress(percent);
-
-      if (book && total > 0) {
-        const locatorStr = JSON.stringify(locator);
-        lastProgressRef.current = { percent, locator: locatorStr };
-        if (progressTimeoutRef.current) clearTimeout(progressTimeoutRef.current);
-        progressTimeoutRef.current = setTimeout(() => {
-          updateProgress(bookId, percent, locatorStr, position, total);
-        }, 500);
-      }
-    },
-    [book, bookId, positions, updateProgress],
   );
 
   const handleSelectionAction = useCallback(
@@ -389,18 +336,18 @@ export function ReaderScreen() {
     } catch {
       showToast('error', 'Failed to add bookmark');
     }
-  }, [book, addBookmark]);
+  }, [book, addBookmark, currentLocatorRef]);
 
   const handleGoToBookmark = useCallback(
-    (cfi: string) => {
-      try {
-        const locator = JSON.parse(cfi) as Locator;
-        readiumRef.current?.goTo(locator);
-        setShowOverlay(false);
-        setShowBookmarks(false);
-      } catch {
+    (rawLocator: string) => {
+      const locator = parseLocator(rawLocator);
+      if (!locator) {
         showToast('error', 'Invalid bookmark location');
+        return;
       }
+      readiumRef.current?.goTo(locator);
+      setShowOverlay(false);
+      setShowBookmarks(false);
     },
     [],
   );
@@ -430,17 +377,17 @@ export function ReaderScreen() {
     setShowOverlay(false);
     setShowSummary(true);
     fetchSummary(chapterIndex >= 0 ? chapterIndex : 0, currentHref);
-  }, [toc, resetSummary, fetchSummary]);
+  }, [toc, resetSummary, fetchSummary, currentLocatorRef]);
 
   const handleGoToHighlight = useCallback(
     (location: string) => {
-      try {
-        const locator = JSON.parse(location) as Locator;
-        readiumRef.current?.goTo(locator);
-        setShowHighlights(false);
-      } catch {
+      const locator = parseLocator(location);
+      if (!locator) {
         showToast('error', 'Invalid highlight location');
+        return;
       }
+      readiumRef.current?.goTo(locator);
+      setShowHighlights(false);
     },
     [],
   );
@@ -467,7 +414,7 @@ export function ReaderScreen() {
     ({ item }: { item: typeof bookmarks[number] }) => (
       <TouchableOpacity
         style={styles.chapterItem}
-        onPress={() => handleGoToBookmark(item.cfi)}
+        onPress={() => handleGoToBookmark(item.locator)}
         onLongPress={() => {
           Alert.alert(
             'Delete bookmark',
@@ -577,7 +524,7 @@ export function ReaderScreen() {
 
   const renderHighlightItem = useCallback(
     ({ item, index }: { item: any; index: number }) => (
-      <TouchableOpacity onPress={() => handleGoToHighlight(item.location)}>
+      <TouchableOpacity onPress={() => handleGoToHighlight(item.locator)}>
         <HighlightItem
           item={item}
           index={index}
@@ -1163,7 +1110,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   summaryScroll: {
-    flex: 1,
+    maxHeight: 750,
   },
   summaryBulletRow: {
     flexDirection: 'row',

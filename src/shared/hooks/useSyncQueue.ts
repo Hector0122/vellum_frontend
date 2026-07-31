@@ -29,16 +29,16 @@ async function processOperation(op: SyncOperation): Promise<boolean> {
   try {
     switch (op.type) {
       case 'UPDATE_PROGRESS': {
-        const { bookId, progress, cfi, currentPage, totalPages } = op.payload as {
+        const { bookId, progress, locator, currentPage, totalPages } = op.payload as {
           bookId: string;
           progress: number;
-          cfi?: string;
+          locator?: string;
           currentPage?: number;
           totalPages?: number;
         };
         await api.patch(`/api/books/${bookId}`, {
           progress_percent: progress,
-          progress_cfi: cfi ?? null,
+          progress_locator: locator ?? null,
           current_page: currentPage,
           total_pages: totalPages,
           last_opened_at: new Date().toISOString(),
@@ -53,16 +53,16 @@ async function processOperation(op: SyncOperation): Promise<boolean> {
       }
 
       case 'CREATE_HIGHLIGHT': {
-        const { bookId, text, location, color, tempId } = op.payload as {
+        const { bookId, text, locator, color, tempId } = op.payload as {
           bookId: string;
           text: string;
-          location: string;
+          locator: string;
           color: string;
           tempId: string;
         };
         const data = await api.post<{ highlight: { id: string } }>(
           `/api/books/${bookId}/highlights`,
-          { text, location, color },
+          { text, locator, color },
         );
         // Replace temp id with real id in store
         useHighlightStore.getState().replaceTempId(tempId, data.highlight.id);
@@ -79,15 +79,15 @@ async function processOperation(op: SyncOperation): Promise<boolean> {
       }
 
       case 'CREATE_BOOKMARK': {
-        const { bookId, cfi, label, tempId } = op.payload as {
+        const { bookId, locator, label, tempId } = op.payload as {
           bookId: string;
-          cfi: string;
+          locator: string;
           label?: string;
           tempId: string;
         };
         const data = await api.post<{ bookmark: { id: string } }>(
           `/api/books/${bookId}/bookmarks`,
-          { cfi, label },
+          { locator, label },
         );
         useBookmarkStore.getState().replaceTempId(tempId, data.bookmark.id);
         return true;

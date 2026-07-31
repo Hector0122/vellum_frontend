@@ -200,11 +200,13 @@ Track reading habits and streaks.
 
 Generate chapter summaries on demand.
 
-- Extract chapter text automatically
-- Groq (Llama 3.1) as primary provider
+- Frontend sends the current chapter's `href` (from the reader's TOC) — chapter text extraction happens server-side (`epub-parser` against the same EPUB file used for reading), not in the app
+- Groq as primary provider
 - Gemini 2.0 Flash as fallback
+- Summary is generated in the same language as the source chapter (not always English)
 - Results cached per chapter in database
-- Displayed as bullet points in reader overlay
+- Displayed as bullet points in a scrollable reader overlay panel
+- Pages with too little extractable text (cover, title page) return a clear error instead of an empty/useless summary
 
 ---
 

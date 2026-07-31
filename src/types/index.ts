@@ -15,12 +15,13 @@ export interface Book {
   cover_url?: string;
   file_url: string;
   file_type: 'epub' | 'pdf';
-  // NOTE: progress_cfi now stores a Readium Locator JSON string, not an epub.js CFI.
-  // legacy CFI values will not work with react-native-readium.
+  // NOTE: progress_locator stores a Readium Locator JSON string for books read
+  // after the epub.js -> react-native-readium migration; older rows still hold
+  // a legacy epub.js CFI string, which react-native-readium cannot resolve.
   status: 'unread' | 'reading' | 'read';
   genres: string[];
   progress_percent: number;
-  progress_cfi?: string | null;
+  progress_locator?: string | null;
   current_page: number;
   total_pages?: number | null;
   last_opened_at?: string;
@@ -47,7 +48,7 @@ export interface Highlight {
   book_id: string;
   book_title?: string;
   text: string;
-  location: string;
+  locator: string;
   color: string;
   created_at: string;
 }

@@ -8,7 +8,7 @@ export interface Bookmark {
   id: string;
   user_id: string;
   book_id: string;
-  cfi: string; // Readium Locator JSON string (legacy epub.js CFI values are not supported)
+  locator: string; // Readium Locator JSON string (legacy epub.js CFI values are not supported)
   label: string | null;
   created_at: string;
 }
@@ -22,7 +22,7 @@ interface BookmarkState {
   total: number;
   loading: boolean;
   fetchBookmarks: (bookId: string, limit?: number, offset?: number) => Promise<void>;
-  addBookmark: (bookId: string, cfi: string, label?: string) => Promise<void>;
+  addBookmark: (bookId: string, locator: string, label?: string) => Promise<void>;
   removeBookmark: (bookId: string, bookmarkId: string) => Promise<void>;
   replaceTempId: (tempId: string, realId: string) => void;
 }
@@ -46,13 +46,13 @@ export const useBookmarkStore = create<BookmarkState>()(
         }
       },
 
-      addBookmark: async (bookId: string, cfi: string, label?: string) => {
+      addBookmark: async (bookId: string, locator: string, label?: string) => {
         const tempId = generateTempId();
         const optimistic: Bookmark = {
           id: tempId,
           user_id: '',
           book_id: bookId,
-          cfi,
+          locator,
           label: label || null,
           created_at: new Date().toISOString(),
         };
@@ -62,7 +62,7 @@ export const useBookmarkStore = create<BookmarkState>()(
         try {
           const data = await api.post<{ bookmark: Bookmark }>(
             '/api/books/' + bookId + '/bookmarks',
-            { cfi, label },
+            { locator, label },
           );
           set({
             bookmarks: get().bookmarks.map((b) =>
@@ -73,7 +73,7 @@ export const useBookmarkStore = create<BookmarkState>()(
           if (isNetworkError(e)) {
             useSyncQueueStore.getState().add({
               type: 'CREATE_BOOKMARK',
-              payload: { bookId, cfi, label, tempId },
+              payload: { bookId, locator, label, tempId },
             });
           } else {
             set({ bookmarks: get().bookmarks.filter((b) => b.id !== tempId) });

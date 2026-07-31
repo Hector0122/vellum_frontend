@@ -28,6 +28,12 @@ import { useReadingStats } from '@/shared/hooks/useReadingStats';
 import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import { AnimatedFAB } from '@/shared/components/AnimatedFAB';
 import { BookCard } from '@/features/library/components/BookCard';
+import {
+  useLibraryFilters,
+  SORT_LABELS,
+  type FilterMode,
+  type SortMode,
+} from '@/features/library/hooks/useLibraryFilters';
 import type { Book, RootStackParamList } from '@/types';
 import { colors } from '@/shared/theme/colors';
 
@@ -36,16 +42,6 @@ interface UploadResponse {
   publicUrl: string;
   objectKey: string;
 }
-
-type FilterMode = 'all' | 'reading' | 'unread' | 'read';
-type SortMode = 'last' | 'az' | 'progress' | 'added';
-
-const SORT_LABELS: Record<SortMode, string> = {
-  last: 'Recent',
-  az: 'A \u2014 Z',
-  progress: 'Progress',
-  added: 'Added',
-};
 
 const FLATLIST_CONFIG = {
   initialNumToRender: 10,
@@ -65,9 +61,8 @@ export function LibraryScreen() {
   const updatePages = useLibraryStore(s => s.updatePages);
 
   const [uploading, setUploading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterMode>('reading');
-  const [sort, setSort] = useState<SortMode>('last');
+  const { search, setSearch, filter, setFilter, sort, setSort, filtered } =
+    useLibraryFilters(books);
   const [showSort, setShowSort] = useState(false);
   const [contextBook, setContextBook] = useState<Book | null>(null);
   const [showContext, setShowContext] = useState(false);
@@ -112,54 +107,6 @@ export function LibraryScreen() {
     ),
     [loading, fetchBooks],
   );
-
-  const filtered = useMemo(() => {
-    let result = [...books];
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        b =>
-          b.title.toLowerCase().includes(q) ||
-          (b.author && b.author.toLowerCase().includes(q)),
-      );
-    }
-
-    if (filter === 'reading') {
-      result = result.filter(
-        b => b.progress_percent > 0 && b.progress_percent < 100,
-      );
-    } else if (filter === 'unread') {
-      result = result.filter(b => b.progress_percent === 0);
-    } else if (filter === 'read') {
-      result = result.filter(b => b.status === 'read');
-    }
-
-    switch (sort) {
-      case 'az':
-        result.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-      case 'progress':
-        result.sort((a, b) => b.progress_percent - a.progress_percent);
-        break;
-      case 'added':
-        result.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        );
-        break;
-      case 'last':
-      default:
-        result.sort(
-          (a, b) =>
-            new Date(b.last_opened_at || b.created_at).getTime() -
-            new Date(a.last_opened_at || a.created_at).getTime(),
-        );
-        break;
-    }
-
-    return result;
-  }, [books, search, filter, sort]);
 
   const handleUpload = useCallback(async () => {
     try {

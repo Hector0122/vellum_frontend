@@ -18,7 +18,7 @@ interface LibraryState {
   loading: boolean;
   fetchBooks: () => Promise<void>;
   deleteBook: (bookId: string) => Promise<void>;
-  updateProgress: (bookId: string, progress: number, cfi?: string, currentPage?: number, totalPages?: number) => Promise<void>;
+  updateProgress: (bookId: string, progress: number, locator?: string, currentPage?: number, totalPages?: number) => Promise<void>;
   markAsRead: (bookId: string) => Promise<void>;
   updatePages: (bookId: string, currentPage: number, totalPages?: number) => Promise<void>;
 }
@@ -41,7 +41,7 @@ export const useLibraryStore = create<LibraryState>()(
               return {
                 ...serverBook,
                 progress_percent: local.progress_percent ?? serverBook.progress_percent,
-                progress_cfi: local.progress_cfi ?? serverBook.progress_cfi,
+                progress_locator: local.progress_locator ?? serverBook.progress_locator,
                 current_page: local.current_page ?? serverBook.current_page,
                 total_pages: local.total_pages ?? serverBook.total_pages,
                 last_opened_at: local.last_opened_at,
@@ -76,8 +76,8 @@ export const useLibraryStore = create<LibraryState>()(
         }
       },
 
-      updateProgress: async (bookId: string, progress: number, cfi?: string, currentPage?: number, totalPages?: number) => {
-        if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, cfi, currentPage, totalPages);
+      updateProgress: async (bookId: string, progress: number, locator?: string, currentPage?: number, totalPages?: number) => {
+        if (__DEV__) console.log('[libraryStore] updateProgress:', bookId, progress, locator, currentPage, totalPages);
 
         const clamped = Math.min(progress, 100);
         const newStatus = clamped >= 100 ? 'read' : 'reading';
@@ -90,7 +90,7 @@ export const useLibraryStore = create<LibraryState>()(
               ? {
                   ...b,
                   progress_percent: clamped,
-                  progress_cfi: cfi,
+                  progress_locator: locator,
                   current_page: currentPage ?? b.current_page,
                   total_pages: totalPages ?? b.total_pages,
                   status: newStatus,
@@ -103,7 +103,7 @@ export const useLibraryStore = create<LibraryState>()(
         try {
           await api.patch<BookResponse>(`/api/books/${bookId}`, {
             progress_percent: clamped,
-            progress_cfi: cfi ?? null,
+            progress_locator: locator ?? null,
             current_page: currentPage,
             total_pages: totalPages,
             status: newStatus,
@@ -114,7 +114,7 @@ export const useLibraryStore = create<LibraryState>()(
           if (isNetworkError(e)) {
             useSyncQueueStore.getState().add({
               type: 'UPDATE_PROGRESS',
-              payload: { bookId, progress, cfi, currentPage, totalPages },
+              payload: { bookId, progress, locator, currentPage, totalPages },
             });
           }
         }
