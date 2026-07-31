@@ -1023,6 +1023,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 8,
+    marginBottom: 28,
     paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: colors.accentSoft,
