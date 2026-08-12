@@ -15,6 +15,7 @@ import { AnimatedScreen } from '@/shared/animations/AnimatedScreen';
 import { hapticLight } from '@/shared/lib/haptics';
 import type { RootStackParamList, BookSuggestion } from '@/types';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 
 export function WishlistScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -42,7 +43,7 @@ export function WishlistScreen() {
             {item.author && <Text style={styles.author}>{item.author}</Text>}
           </View>
           <TouchableOpacity onPress={() => handleDismissFromWishlist(item.id)}>
-            <Icon name="close-circle-outline" size={22} color={colors.textMuted} />
+            <Icon name="close-circle-outline" size={iconSize.md} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -69,7 +70,7 @@ export function WishlistScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Icon name="arrow-left" size={24} color={colors.text} />
+            <Icon name="arrow-left" size={iconSize.md} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Quiero leer</Text>
           <View style={styles.backBtn} />
@@ -77,7 +78,7 @@ export function WishlistScreen() {
 
         {wishlist.length === 0 && !loading ? (
           <View style={styles.center}>
-            <Icon name="bookmark-outline" size={56} color={colors.textMuted} />
+            <Icon name="bookmark-outline" size={iconSize.xl} color={colors.textMuted} />
             <Text style={styles.emptyTitle}>Tu lista está vacía</Text>
             <Text style={styles.emptyText}>
               Explora la sección Descubrir para encontrar tu siguiente lectura.
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: radius.md,
     marginTop: 16,
   },
   discoverBtnText: {
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: radius.md,
     padding: 16,
     gap: 8,
   },
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108,99,255,0.10)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: radius.sm,
   },
   genreText: {
     fontSize: 12,

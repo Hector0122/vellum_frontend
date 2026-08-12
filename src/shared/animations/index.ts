@@ -1,11 +1,14 @@
 import { useSharedValue, withSpring, withTiming, Easing } from 'react-native-reanimated';
+import { motion } from '@/shared/theme/tokens';
 
 /**
  * Spring Animation Config - bouncy feel
+ * Tomado de `motion.spring.gentle` (brand-kit) — el mismo spring que usan
+ * cards/modales en las 6 apps. Antes era un config propio de Vellum
+ * (damping 10) que no coincidía con el resto.
  */
 export const SPRING_CONFIG = {
-  damping: 10,
-  mass: 1,
+  ...motion.spring.gentle,
   overshootClamping: false,
   restSpeedThreshold: 2,
   restDisplacementThreshold: 2,
@@ -13,26 +16,29 @@ export const SPRING_CONFIG = {
 
 /**
  * Timing Animation Config - smooth linear
+ * `motion.duration.base` + `motion.easing.standard` (brand-kit).
  */
 export const TIMING_CONFIG = {
-  duration: 300,
-  easing: Easing.inOut(Easing.ease),
+  duration: motion.duration.base,
+  easing: Easing.bezier(...motion.easing.standard),
 };
 
 /**
  * Fast timing for micro-interactions
+ * `motion.duration.fast` (brand-kit).
  */
 export const FAST_TIMING_CONFIG = {
-  duration: 150,
+  duration: motion.duration.fast,
   easing: Easing.out(Easing.quad),
 };
 
 /**
  * Screen transition config
+ * `motion.duration.slow` (brand-kit) — transición de pantalla completa.
  */
 export const SCREEN_TRANSITION_CONFIG = {
-  duration: 400,
-  easing: Easing.inOut(Easing.cubic),
+  duration: motion.duration.slow,
+  easing: Easing.bezier(...motion.easing.standard),
 };
 
 /**

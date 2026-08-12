@@ -3,11 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import ToastMessage, { BaseToastProps } from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 
 const toastConfig = {
   success: ({ text1, text2 }: BaseToastProps) => (
     <View style={[styles.base, styles.success]}>
-      <Icon name="check-circle" size={20} color={colors.success} />
+      <Icon name="check-circle" size={iconSize.md} color={colors.success} />
       <View style={styles.textContainer}>
         <Text style={styles.text1} numberOfLines={1}>{text1}</Text>
         {text2 && <Text style={styles.text2} numberOfLines={2}>{text2}</Text>}
@@ -16,7 +17,7 @@ const toastConfig = {
   ),
   error: ({ text1, text2 }: BaseToastProps) => (
     <View style={[styles.base, styles.error]}>
-      <Icon name="alert-circle" size={20} color={colors.destructive} />
+      <Icon name="alert-circle" size={iconSize.md} color={colors.destructive} />
       <View style={styles.textContainer}>
         <Text style={styles.text1} numberOfLines={1}>{text1}</Text>
         {text2 && <Text style={styles.text2} numberOfLines={2}>{text2}</Text>}
@@ -25,7 +26,7 @@ const toastConfig = {
   ),
   info: ({ text1, text2 }: BaseToastProps) => (
     <View style={[styles.base, styles.info]}>
-      <Icon name="information" size={20} color={colors.accent} />
+      <Icon name="information" size={iconSize.md} color={colors.accent} />
       <View style={styles.textContainer}>
         <Text style={styles.text1} numberOfLines={1}>{text1}</Text>
         {text2 && <Text style={styles.text2} numberOfLines={2}>{text2}</Text>}
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: radius.md,
     gap: 10,
     elevation: 6,
     shadowColor: '#000',

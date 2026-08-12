@@ -5,6 +5,7 @@ import { AnimatedListItem } from '@/shared/components/AnimatedListItem';
 import { CachedImage } from '@/shared/components/CachedImage';
 import type { Book } from '@/types';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 
 interface BookCardProps {
   item: Book;
@@ -26,7 +27,7 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
           <CachedImage uri={item.cover_url} style={styles.coverImage} />
         ) : (
           <View style={styles.coverPlaceholder}>
-            <Icon name="book-open-variant" size={24} color={colors.textSecondary} />
+            <Icon name="book-open-variant" size={iconSize.md} color={colors.textSecondary} />
           </View>
         )}
         <View style={styles.bookInfo}>
@@ -36,7 +37,7 @@ function BookCardInner({ item, index, onPress, onLongPress }: BookCardProps) {
             </Text>
             {item.status === 'read' && (
               <View style={styles.readBadge}>
-                <Icon name="check-circle" size={14} color={colors.readIndicator} />
+                <Icon name="check-circle" size={iconSize.sm} color={colors.readIndicator} />
               </View>
             )}
           </View>
@@ -82,7 +83,7 @@ const styles = StyleSheet.create({
   bookCard: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 12,
     gap: 12,
     alignItems: 'center',
@@ -90,14 +91,14 @@ const styles = StyleSheet.create({
   coverImage: {
     width: 48,
     height: 64,
-    borderRadius: 6,
+    borderRadius: radius.xs,
     backgroundColor: colors.border,
   },
   coverPlaceholder: {
     width: 48,
     height: 64,
     backgroundColor: colors.border,
-    borderRadius: 6,
+    borderRadius: radius.xs,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108,99,255,0.08)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: radius.xs,
   },
   genreText: {
     fontSize: 10,

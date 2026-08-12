@@ -1,14 +1,18 @@
 import React from 'react';
 import { colors } from '@/shared/theme/colors';
+import { motion } from '@/shared/theme/tokens';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
-  type TouchableOpacityProps,
+  type PressableProps,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-interface ButtonProps extends TouchableOpacityProps {
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+interface ButtonProps extends PressableProps {
   title: string;
   variant?: 'primary' | 'secondary' | 'outline';
   loading?: boolean;
@@ -22,16 +26,27 @@ const ButtonInner = ({
   disabled,
   ...props
 }: ButtonProps) => {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       style={[
         styles.base,
         styles[variant],
         (disabled || loading) && styles.disabled,
+        animatedStyle,
         style,
       ]}
       disabled={disabled || loading}
-      activeOpacity={0.8}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, motion.spring.press);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, motion.spring.press);
+      }}
       {...props}
     >
       {loading ? (
@@ -46,7 +61,7 @@ const ButtonInner = ({
           {title}
         </Text>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 

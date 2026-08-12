@@ -17,6 +17,7 @@ import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 import type { Book, Highlight } from '@/types';
 
 export function WidgetConfigScreen() {
@@ -100,7 +101,7 @@ export function WidgetConfigScreen() {
           </View>
           <Icon
             name={isSelected ? 'radiobox-marked' : 'radiobox-blank'}
-            size={24}
+            size={iconSize.md}
             color={isSelected ? colors.accent : colors.textMuted}
           />
         </TouchableOpacity>
@@ -116,7 +117,7 @@ export function WidgetConfigScreen() {
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Icon name="arrow-left" size={24} color={colors.textPrimary} />
+          <Icon name="arrow-left" size={iconSize.md} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Widget</Text>
         <View style={styles.backButton} />
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginHorizontal: 16,
     backgroundColor: colors.accentSoft,
-    borderRadius: 12,
+    borderRadius: radius.md,
     gap: 10,
   },
   previewText: {
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: colors.accent,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   saveButtonDisabled: {
