@@ -14,6 +14,7 @@ import { Input } from '@/shared/components/Input';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/types';
 import { colors } from '@/shared/theme/colors';
+import { fontFamily } from '@/shared/theme/tokens';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
@@ -102,8 +103,8 @@ const styles = StyleSheet.create({
     marginBottom: 48,
   },
   title: {
+    fontFamily: fontFamily.display,
     fontSize: 36,
-    fontWeight: '700',
     color: colors.accent,
     letterSpacing: -0.5,
   },
