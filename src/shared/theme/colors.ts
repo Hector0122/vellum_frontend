@@ -6,7 +6,7 @@ import { hues, semantic, hexToRgba } from './tokens';
 // la paleta (bg crema, textos, success/error cálidos, highlighters) es
 // una elección deliberada de "papel" propia de Vellum — no un duplicado
 // accidental de otra app, así que se queda igual. Ver
-// brand-kit/README.md#colores-por-app.
+// arcd_kit/README.md#colores-por-app.
 export const colors = {
   background: '#F8F5EF',
   surface: '#FFFFFF',

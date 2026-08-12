@@ -3,7 +3,7 @@ import { motion } from '@/shared/theme/tokens';
 
 /**
  * Spring Animation Config - bouncy feel
- * Tomado de `motion.spring.gentle` (brand-kit) — el mismo spring que usan
+ * Tomado de `motion.spring.gentle` (arcd_kit) — el mismo spring que usan
  * cards/modales en las 6 apps. Antes era un config propio de Vellum
  * (damping 10) que no coincidía con el resto.
  */
@@ -16,7 +16,7 @@ export const SPRING_CONFIG = {
 
 /**
  * Timing Animation Config - smooth linear
- * `motion.duration.base` + `motion.easing.standard` (brand-kit).
+ * `motion.duration.base` + `motion.easing.standard` (arcd_kit).
  */
 export const TIMING_CONFIG = {
   duration: motion.duration.base,
@@ -25,7 +25,7 @@ export const TIMING_CONFIG = {
 
 /**
  * Fast timing for micro-interactions
- * `motion.duration.fast` (brand-kit).
+ * `motion.duration.fast` (arcd_kit).
  */
 export const FAST_TIMING_CONFIG = {
   duration: motion.duration.fast,
@@ -34,7 +34,7 @@ export const FAST_TIMING_CONFIG = {
 
 /**
  * Screen transition config
- * `motion.duration.slow` (brand-kit) — transición de pantalla completa.
+ * `motion.duration.slow` (arcd_kit) — transición de pantalla completa.
  */
 export const SCREEN_TRANSITION_CONFIG = {
   duration: motion.duration.slow,

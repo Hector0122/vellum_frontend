@@ -1,20 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Keychain from 'react-native-keychain';
 import Config from 'react-native-config';
 
 export const API_URL = Config.API_URL;
 
-const TOKEN_KEY = 'auth_access_token';
+const KEYCHAIN_SERVICE = 'vellum.auth';
+
+// Limpieza de la migración AsyncStorage → Keychain: borra el token en texto
+// plano que versiones anteriores dejaron en disco. Idempotente.
+AsyncStorage.removeItem('auth_access_token').catch(() => {});
 
 export async function getToken(): Promise<string | null> {
-  return AsyncStorage.getItem(TOKEN_KEY);
+  const creds = await Keychain.getGenericPassword({ service: KEYCHAIN_SERVICE });
+  return creds ? creds.password : null;
 }
 
 export async function setToken(token: string): Promise<void> {
-  await AsyncStorage.setItem(TOKEN_KEY, token);
+  await Keychain.setGenericPassword('auth', token, {
+    service: KEYCHAIN_SERVICE,
+    accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
 }
 
 export async function removeToken(): Promise<void> {
-  await AsyncStorage.removeItem(TOKEN_KEY);
+  await Keychain.resetGenericPassword({ service: KEYCHAIN_SERVICE });
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
