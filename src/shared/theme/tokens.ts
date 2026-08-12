@@ -58,11 +58,12 @@ export const hues = {
   green: semantic.success.light, // Varo — ahorro = progreso, mismo verde que success
   azure: semantic.info.light, // Varo (acento) — mismo azul que info
   slateBlue: '#4A7DB8', // Vellum — azul apagado de "papel", distinto de azure a propósito
+  blue: '#3B82F6', // Velody — azul vívido de marca (antes blue-500/600 de Tailwind, sin curar), distinto de azure/slateBlue a propósito
   teal: '#2BD4CE', // Vaulta / Veya
-  purple: '#7B6BF5', // Vaulta / Veya
-  amber: semantic.warning.light, // VaultGaming / Vellum / Velody — mismo ámbar que warning
+  purple: '#7B6BF5', // Vaulta / Veya / Velody
+  amber: semantic.warning.light, // VaultGaming / Vellum — mismo ámbar que warning
   red: semantic.danger.light, // VaultGaming — mismo rojo que danger, sin excepción
-  orange: '#F97316', // Velody
+  orange: '#F97316', // sin usar hoy en brands — Velody usa naranja como acento secundario propio (loop markers, toggles), no como color de marca
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -298,5 +299,5 @@ export const brands = {
   vaulta: { primary: hues.teal, accent: hues.purple }, // fotos
   vellum: { primary: hues.slateBlue, accent: hues.amber }, // lector — antes usaba un dorado propio (#D9A441)
   veya: { primary: hues.purple, accent: hues.teal }, // pelis/series/anime — antes usaba su propio morado/teal
-  velody: { primary: hues.orange, accent: hues.amber }, // música — antes usaba su propio ámbar (#EAB308)
+  velody: { primary: hues.blue, accent: hues.purple }, // música — auditado 2026-08-11: el color real en uso es un degradado azul→morado (título, CTAs), no naranja/ámbar como se documentó antes sin auditar el código
 } as const satisfies Record<string, BrandAccent>;
