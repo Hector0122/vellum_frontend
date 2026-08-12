@@ -59,6 +59,7 @@ import { analytics } from '@/shared/lib/analytics';
 import { hapticLight, hapticSuccess } from '@/shared/lib/haptics';
 import { showToast } from '@/shared/components/Toast';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 import type { RootStackParamList } from '@/types';
 
 type ReaderRoute = RouteProp<RootStackParamList, 'Reader'>;
@@ -616,7 +617,7 @@ export function ReaderScreen() {
           onPress={toggleOverlay}
           activeOpacity={0.8}
         >
-          <Icon name="dots-vertical" size={22} color={colors.white} />
+          <Icon name="dots-vertical" size={iconSize.md} color={colors.white} />
         </TouchableOpacity>
       )}
 
@@ -697,7 +698,7 @@ export function ReaderScreen() {
               style={styles.aiSummaryBtn}
               onPress={handleShowSummary}
             >
-              <Icon name="auto-fix" size={18} color={colors.success} />
+              <Icon name="auto-fix" size={iconSize.sm} color={colors.success} />
               <Text style={styles.aiSummaryBtnText}>AI Summary</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -776,7 +777,7 @@ export function ReaderScreen() {
           >
             <View style={styles.panelHandle} />
             <View style={styles.summaryHeader}>
-              <Icon name="auto-fix" size={18} color={colors.success} />
+              <Icon name="auto-fix" size={iconSize.sm} color={colors.success} />
               <Text style={styles.chaptersTitle}>AI Summary</Text>
             </View>
             {summaryLoading && (
@@ -911,7 +912,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.06)',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     minWidth: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -952,7 +953,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   actionBtnIcon: {
     fontSize: 18,
@@ -972,7 +973,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 28,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     backgroundColor: colors.accentSoft,
   },
   aiSummaryBtnText: {
@@ -1052,7 +1053,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: radius.xs,
     overflow: 'hidden',
   },
   chaptersPanel: {

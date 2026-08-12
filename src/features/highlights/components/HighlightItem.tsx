@@ -5,6 +5,7 @@ import {
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import type { Highlight, Note } from '@/types';
 import { colors } from '@/shared/theme/colors';
+import { radius } from '@/shared/theme/tokens';
 
 interface HighlightItemProps {
   item: Highlight;
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   highlightItem: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     padding: 12,
     gap: 10,
   },
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
   },
   notesSection: {
     backgroundColor: colors.elevated,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     padding: 12,
     gap: 8,
     marginTop: 4,
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   noteInput: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
     color: colors.text,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: colors.accent,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },

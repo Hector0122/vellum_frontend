@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { colors } from '@/shared/theme/colors';
+import { iconSize } from '@/shared/theme/tokens';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -62,7 +63,7 @@ const AnimatedFABInner = ({
       style={[styles.fab, { backgroundColor }, animatedStyle]}
       activeOpacity={0.8}
     >
-      <Icon name={icon} size={28} color={color} />
+      <Icon name={icon} size={iconSize.lg} color={color} />
     </AnimatedTouchable>
   );
 };

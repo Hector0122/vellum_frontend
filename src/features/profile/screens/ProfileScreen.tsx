@@ -14,6 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '@/stores/authStore';
 import type { RootStackParamList } from '@/types';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 
 const MENU_ITEMS: {
   label: string;
@@ -57,14 +58,14 @@ export function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="close" size={24} color={colors.textSecondary} />
+            <Icon name="close" size={iconSize.md} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Profile section */}
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
-            <Icon name="account" size={40} color={colors.accent} />
+            <Icon name="account" size={iconSize.xl} color={colors.accent} />
           </View>
           <Text style={styles.displayName}>
             {user?.display_name || user?.email?.split('@')[0]}
@@ -82,20 +83,20 @@ export function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.menuIcon}>
-                <Icon name={item.icon} size={22} color={colors.accent} />
+                <Icon name={item.icon} size={iconSize.md} color={colors.accent} />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuLabel}>{item.label}</Text>
                 <Text style={styles.menuDesc}>{item.desc}</Text>
               </View>
-              <Icon name="chevron-right" size={20} color={colors.textMuted} />
+              <Icon name="chevron-right" size={iconSize.md} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Icon name="logout" size={20} color={colors.destructive} />
+          <Icon name="logout" size={iconSize.md} color={colors.destructive} />
           <Text style={styles.logoutText}>Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -148,14 +149,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.md,
     padding: 16,
     gap: 14,
   },
   menuIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: radius.md,
     backgroundColor: `${colors.accent}20`,
     alignItems: 'center',
     justifyContent: 'center',
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: radius.md,
     backgroundColor: 'rgba(255,107,107,0.12)',
   },
   logoutText: {

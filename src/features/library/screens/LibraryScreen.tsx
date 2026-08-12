@@ -36,6 +36,7 @@ import {
 } from '@/features/library/hooks/useLibraryFilters';
 import type { Book, RootStackParamList } from '@/types';
 import { colors } from '@/shared/theme/colors';
+import { radius, iconSize } from '@/shared/theme/tokens';
 
 interface UploadResponse {
   uploadUrl: string;
@@ -272,7 +273,7 @@ export function LibraryScreen() {
               >
                 <Icon
                   name="fire"
-                  size={18}
+                  size={iconSize.sm}
                   color={streak > 0 ? colors.streak : colors.textMuted}
                 />
                 {streak > 0 && (
@@ -284,13 +285,13 @@ export function LibraryScreen() {
               style={styles.headerBtn}
               onPress={() => navigation.navigate('Profile')}
             >
-              <Icon name="account-circle-outline" size={26} color={colors.textSecondary} />
+              <Icon name="account-circle-outline" size={iconSize.lg} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Search */}
           <View style={styles.searchRow}>
-              <Icon name="magnify" size={18} color={colors.textMuted} />
+              <Icon name="magnify" size={iconSize.sm} color={colors.textMuted} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search by title or author..."
@@ -301,7 +302,7 @@ export function LibraryScreen() {
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
-                <Icon name="close-circle" size={18} color={colors.textMuted} />
+                <Icon name="close-circle" size={iconSize.sm} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -337,11 +338,11 @@ export function LibraryScreen() {
               style={styles.sortBtn}
               onPress={() => setShowSort(!showSort)}
             >
-              <Icon name="sort-variant" size={18} color={colors.textSecondary} />
+              <Icon name="sort-variant" size={iconSize.sm} color={colors.textSecondary} />
               <Text style={styles.sortLabel}>{SORT_LABELS[sort]}</Text>
               <Icon
                 name={showSort ? 'chevron-up' : 'chevron-down'}
-                size={16}
+                size={iconSize.sm}
                 color={colors.textMuted}
               />
             </TouchableOpacity>
@@ -371,7 +372,7 @@ export function LibraryScreen() {
                     {SORT_LABELS[mode]}
                   </Text>
                   {sort === mode && (
-                    <Icon name="check" size={16} color={colors.accent} />
+                    <Icon name="check" size={iconSize.sm} color={colors.accent} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -385,7 +386,7 @@ export function LibraryScreen() {
             </View>
           ) : filtered.length === 0 ? (
             <View style={styles.center}>
-              <Icon name="bookshelf" size={48} color={colors.textMuted} />
+              <Icon name="bookshelf" size={iconSize.xl} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>
                 {books.length === 0 ? 'No books yet' : 'No matches'}
               </Text>
@@ -434,16 +435,16 @@ export function LibraryScreen() {
             <View style={styles.contextMenu}>
               {contextBook && contextBook.status !== 'read' && (
                 <TouchableOpacity style={styles.contextOption} onPress={handleMarkAsRead}>
-                  <Icon name="check-circle-outline" size={22} color={colors.readIndicator} />
+                  <Icon name="check-circle-outline" size={iconSize.md} color={colors.readIndicator} />
                   <Text style={styles.contextOptionText}>Marcar como leído</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity style={styles.contextOption} onPress={handleOpenEditPages}>
-                <Icon name="book-open-page-variant-outline" size={22} color={colors.accent} />
+                <Icon name="book-open-page-variant-outline" size={iconSize.md} color={colors.accent} />
                 <Text style={styles.contextOptionText}>Editar páginas</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.contextOption} onPress={handleDeleteFromMenu}>
-                <Icon name="delete-outline" size={22} color={colors.destructive} />
+                <Icon name="delete-outline" size={iconSize.md} color={colors.destructive} />
                 <Text style={[styles.contextOptionText, { color: colors.destructive }]}>Eliminar</Text>
               </TouchableOpacity>
             </View>
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,107,53,0.12)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     gap: 2,
   },
   streakText: {
@@ -568,7 +569,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     paddingHorizontal: 14,
     height: 44,
     gap: 8,
@@ -593,7 +594,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },
   chipActive: {
@@ -620,7 +621,7 @@ const styles = StyleSheet.create({
   },
   sortDropdown: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 4,
     marginBottom: 12,
   },
@@ -630,7 +631,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   sortOptionActive: {
     backgroundColor: 'rgba(74,74,233,0.15)',
@@ -684,7 +685,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
   contextOptionText: {
     fontSize: 16,
@@ -727,7 +728,7 @@ const styles = StyleSheet.create({
   },
   pagesInput: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 18,
@@ -748,7 +749,7 @@ const styles = StyleSheet.create({
   pagesCancelBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     alignItems: 'center',
   },
@@ -760,7 +761,7 @@ const styles = StyleSheet.create({
   pagesSaveBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     backgroundColor: colors.accent,
     alignItems: 'center',
   },

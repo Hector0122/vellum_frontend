@@ -1,6 +1,5 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from './api';
+import { API_URL, getToken } from './api';
 
 const CACHE_DIR = `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/epub_cache`;
 
@@ -37,7 +36,7 @@ export async function getCachedEpubPath(bookId: string): Promise<string | null> 
 }
 
 export async function downloadAndCache(bookId: string): Promise<string> {
-  const token = await AsyncStorage.getItem('auth_access_token');
+  const token = await getToken();
   const url = `${API_URL}/api/books/${bookId}/file?token=${token}`;
 
   try {

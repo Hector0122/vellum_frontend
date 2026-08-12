@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '@/shared/theme/colors';
+import { radius } from '@/shared/theme/tokens';
 import {
   View,
   TextInput,
@@ -41,7 +42,7 @@ const styles = StyleSheet.create({
   input: {
     height: 52,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: radius.md,
     paddingHorizontal: 16,
     color: colors.text,
     fontSize: 16,
