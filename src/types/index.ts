@@ -14,7 +14,7 @@ export interface Book {
   description?: string;
   cover_url?: string;
   file_url: string;
-  file_type: 'epub' | 'pdf';
+  file_type: 'epub' | 'pdf' | 'md';
   // NOTE: progress_locator stores a Readium Locator JSON string for books read
   // after the epub.js -> react-native-readium migration; older rows still hold
   // a legacy epub.js CFI string, which react-native-readium cannot resolve.

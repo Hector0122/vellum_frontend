@@ -68,7 +68,9 @@ Auth propio con bcrypt + JWT, perfiles en PostgreSQL (Supabase).
 
 # 📚 Library
 
-Users can upload EPUB books.
+Users can upload EPUB books, PDFs, and Markdown notes (🔄 in progress — see openspec/changes/add-multi-format-documents; on-device QA and iOS pending).
+
+The library is split into three sections/tabs — **Books** (EPUB), **PDFs**, and **Notes** (Markdown) — that never mix formats together (spec: `openspec/specs/document-format-sections` once archived). Each section has its own independent search/filter/sort state and its own empty state; the last-viewed section is remembered across app restarts (`useLibrarySection`, `AsyncStorage`).
 
 Each book stores:
 
@@ -81,7 +83,7 @@ Book {
   description
   cover_url
   file_url
-  file_type
+  file_type     // 'epub' | 'pdf' | 'md'
   status        // unread | reading | read (auto-read at 100%)
   genres        // string[] extracted by AI
   progress_percent
@@ -93,13 +95,14 @@ Book {
 
 ### Features
 
-- Search local by title/author
-- Filters: All / Reading / Unread / Read
+- Search local by title/author (scoped to the active section)
+- Filters: All / Reading / Unread / Read (scoped to the active section)
 - Auto-mark as read at 100% progress
 - Genre tags visible on each book (AI-extracted, normalized catalog)
-- Sort: Recent, A—Z, Progress, Added
+- Sort: Recent, A—Z, Progress, Added (scoped to the active section)
 - Long-press to delete
 - Pull-to-refresh
+- Uploading a document auto-switches to the section it lands in
 
 ---
 
@@ -122,6 +125,22 @@ Book {
 - Local EPUB cache for offline reading
 - Native text selection highlights
 - Bookmarks with quick navigation
+
+## PDF 🔄
+
+- `react-native-pdf` (native page rendering — Readium/`react-native-readium` doesn't support PDF; confirmed via its own format-support table)
+- Page-based navigation, resumes last page (`{ type: 'pdf', page, totalPages }` locator)
+- **Highlights are page-level, not text-range** — standard PDF rendering has no selectable text layer without a commercial SDK (Nutrient/PSPDFKit) or a WebView+PDF.js reader; page-level was the deliberate, user-confirmed trade-off. See `openspec/changes/add-multi-format-documents/design.md` Decision 1.
+- Bookmarks, notes, and AI section summaries reuse the same stores/endpoints as EPUB, keyed by page number
+- Android verified (`yarn android:build` succeeds, autolinks under the New Architecture). **iOS pod install is currently broken in this repo for an unrelated, pre-existing reason** — RN 0.85.3's prebuilt-core tarball step fails with a path-parsing error, reproducible even with `react-native-pdf` fully removed; suspected cause is a space in the repo's parent directory path. Needs a working `pod install` environment to verify on iOS.
+
+## Markdown (Notes) 🔄
+
+- `react-native-markdown-display` (pure JS, no native linking) inside a `ScrollView`, one block per rendered `<Markdown>` instance
+- Blocks are split by `splitMarkdownBlocks()` (heading/paragraph-aware, fence-aware); resumes at the nearest block to the last scroll position (`{ type: 'md', blockIndex, scrollOffset }` locator)
+- **Highlights are block-level, not text-range** — same underlying reason as PDF: `react-native-markdown-display` renders a tree of native views for rich formatting, which rules out the character-offset selection trick without sacrificing that rich rendering. See design.md's "Revised during implementation" note.
+- AI section summaries use the document's heading structure — `splitMarkdownBlocks()`'s section numbering is unit-tested to exactly match the backend's `markdown.ts sectionize()` numbering
+- Generated title-card cover (no embedded cover image to extract, unlike EPUB/PDF)
 
 ---
 
@@ -456,6 +475,16 @@ Powerful over time.
 ---
 
 # ⚠️ Migration Notes
+
+## Multi-format documents (PDF / Markdown) — 🔄 in progress
+
+Tracked as `openspec/changes/add-multi-format-documents` (see `proposal.md`/`design.md`/`tasks.md` there for the full picture). Status as of implementation:
+
+- **Backend, shared frontend locator support, PDF reader, Markdown reader, upload flow, and library sections UI are all built** and pass `tsc --noEmit`, the Jest suite, and a Metro release bundle.
+- **Not yet verified on an actual device/simulator** — no interactive on-device pass has been done (tapping through the PDF/Markdown readers, confirming rendering looks right, confirming cross-device sync). Do that before considering this fully shipped.
+- **iOS native build is blocked** by a pre-existing, unrelated environment issue (see the PDF section above) — Android is verified, iOS is pending.
+- **PDF and Markdown highlights are page-level / block-level, not text-range**, unlike EPUB — a deliberate, user-confirmed trade-off forced by what's actually achievable with free, native (non-WebView) rendering libraries for those formats. See `design.md` Decision 1 and its "Revised during implementation" note for the reasoning.
+- `Book.fileType` grew from `'epub' | 'pdf'` to `'epub' | 'pdf' | 'md'` — `pdf` already existed as a dead branch in the type system before this (the upload presign step accepted it, but nothing downstream — cover extraction, AI summaries — actually handled it). Both `pdf` and `md` are fully wired now.
 
 ## EPUB Reader Migration (epub.js → react-native-readium)
 

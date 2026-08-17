@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { pick } from '@react-native-documents/picker';
+import { pick, types } from '@react-native-documents/picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ReactNativeBlobUtil from 'react-native-blob-util';
@@ -34,6 +34,13 @@ import {
   type FilterMode,
   type SortMode,
 } from '@/features/library/hooks/useLibraryFilters';
+import {
+  useLibrarySection,
+  SECTION_ORDER,
+  SECTION_LABELS,
+  SECTION_ICONS,
+  SECTION_EMPTY_TEXT,
+} from '@/features/library/hooks/useLibrarySection';
 import type { Book, RootStackParamList } from '@/types';
 import { colors } from '@/shared/theme/colors';
 import { radius, iconSize } from '@/shared/theme/tokens';
@@ -62,8 +69,24 @@ export function LibraryScreen() {
   const updatePages = useLibraryStore(s => s.updatePages);
 
   const [uploading, setUploading] = useState(false);
+  const { section, setSection } = useLibrarySection();
+
+  // Independent search/filter/sort state per section (spec:
+  // document-format-sections "Filter/sort state is independent per
+  // section") — one useLibraryFilters call per section rather than one
+  // shared call, so switching tabs doesn't reset or bleed state between
+  // them; each call is cheap client-side array filtering.
+  const epubBooks = useMemo(() => books.filter(b => b.file_type === 'epub'), [books]);
+  const pdfBooks = useMemo(() => books.filter(b => b.file_type === 'pdf'), [books]);
+  const mdBooks = useMemo(() => books.filter(b => b.file_type === 'md'), [books]);
+  const epubFilters = useLibraryFilters(epubBooks);
+  const pdfFilters = useLibraryFilters(pdfBooks);
+  const mdFilters = useLibraryFilters(mdBooks);
+  const sectionBooksBySection = { epub: epubBooks, pdf: pdfBooks, md: mdBooks };
+  const filtersBySection = { epub: epubFilters, pdf: pdfFilters, md: mdFilters };
+  const sectionBooks = sectionBooksBySection[section];
   const { search, setSearch, filter, setFilter, sort, setSort, filtered } =
-    useLibraryFilters(books);
+    filtersBySection[section];
   const [showSort, setShowSort] = useState(false);
   const [contextBook, setContextBook] = useState<Book | null>(null);
   const [showContext, setShowContext] = useState(false);
@@ -112,12 +135,22 @@ export function LibraryScreen() {
   const handleUpload = useCallback(async () => {
     try {
       const [file] = await pick({
-        type: ['application/epub+zip', 'application/pdf'],
+        // .md has no single reliable MIME/UTI across platforms (often
+        // reported as text/plain or even application/octet-stream), so we
+        // widen the picker filter and decide fileType from the extension
+        // below rather than trusting file.type alone.
+        type: ['application/epub+zip', 'application/pdf', 'text/markdown', types.plainText],
       });
 
       if (!file.name) return;
-      const fileType = file.type?.includes('pdf') ? 'pdf' : 'epub';
-      const title = file.name.replace(/\.(epub|pdf)$/i, '');
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const fileType: 'epub' | 'pdf' | 'md' =
+        ext === 'md' || ext === 'markdown'
+          ? 'md'
+          : ext === 'pdf' || file.type?.includes('pdf')
+            ? 'pdf'
+            : 'epub';
+      const title = file.name.replace(/\.(epub|pdf|md|markdown)$/i, '');
 
       // Check for duplicate title
       const duplicate = useLibraryStore.getState().books.find(
@@ -142,14 +175,16 @@ export function LibraryScreen() {
         },
       );
 
+      const contentTypeByFormat: Record<'epub' | 'pdf' | 'md', string> = {
+        epub: 'application/epub+zip',
+        pdf: 'application/pdf',
+        md: 'text/markdown',
+      };
+
       await ReactNativeBlobUtil.fetch(
         'PUT',
         uploadUrl,
-        {
-          'Content-Type':
-            file.type ||
-            (fileType === 'pdf' ? 'application/pdf' : 'application/epub+zip'),
-        },
+        { 'Content-Type': file.type || contentTypeByFormat[fileType] },
         ReactNativeBlobUtil.wrap(file.uri),
       );
 
@@ -159,20 +194,28 @@ export function LibraryScreen() {
         file_type: fileType,
       });
 
-      if (fileType === 'epub') {
-        api.post('/api/upload/cover', { bookId: book.id }).catch(() => {});
-      }
+      // Cover generation now dispatches by format on the backend (EPUB
+      // embedded cover, PDF first-page thumbnail, Markdown title-card) —
+      // trigger it for every format rather than just EPUB.
+      api.post('/api/upload/cover', { bookId: book.id }).catch(() => {});
 
       await fetchBooks();
+      // Jump to the section the upload landed in, so it's visible right
+      // away instead of silently appearing in a tab the user isn't on —
+      // see specs/document-format-sections/spec.md "routed to their
+      // matching section".
+      setSection(fileType);
       hapticSuccess();
-      showToast('success', 'Book uploaded', `"${title}" added to your library`);
+      const uploadedLabel =
+        fileType === 'pdf' ? 'PDF uploaded' : fileType === 'md' ? 'Note uploaded' : 'Book uploaded';
+      showToast('success', uploadedLabel, `"${title}" added to your library`);
       analytics.trackEvent('book_upload', { file_type: fileType });
     } catch (err: any) {
       showToast('error', 'Upload failed', err.message);
     } finally {
       setUploading(false);
     }
-  }, [fetchBooks]);
+  }, [fetchBooks, setSection]);
 
   const handleBookPress = useCallback((book: Book) => {
     hapticLight();
@@ -289,6 +332,32 @@ export function LibraryScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Format sections — Books/PDFs/Notes never mix (see
+              specs/document-format-sections/spec.md) */}
+          <View style={styles.sectionTabs}>
+            {SECTION_ORDER.map(s => (
+              <TouchableOpacity
+                key={s}
+                style={[styles.sectionTab, section === s && styles.sectionTabActive]}
+                onPress={() => {
+                  hapticLight();
+                  setSection(s);
+                }}
+              >
+                <Icon
+                  name={SECTION_ICONS[s]}
+                  size={iconSize.sm}
+                  color={section === s ? colors.white : colors.textSecondary}
+                />
+                <Text
+                  style={[styles.sectionTabText, section === s && styles.sectionTabTextActive]}
+                >
+                  {SECTION_LABELS[s]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Search */}
           <View style={styles.searchRow}>
               <Icon name="magnify" size={iconSize.sm} color={colors.textMuted} />
@@ -386,13 +455,13 @@ export function LibraryScreen() {
             </View>
           ) : filtered.length === 0 ? (
             <View style={styles.center}>
-              <Icon name="bookshelf" size={iconSize.xl} color={colors.textMuted} />
+              <Icon name={SECTION_ICONS[section]} size={iconSize.xl} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>
-                {books.length === 0 ? 'No books yet' : 'No matches'}
+                {sectionBooks.length === 0 ? `No ${SECTION_LABELS[section]} yet` : 'No matches'}
               </Text>
               <Text style={styles.emptyText}>
-                {books.length === 0
-                  ? 'Tap + to upload an EPUB'
+                {sectionBooks.length === 0
+                  ? SECTION_EMPTY_TEXT[section]
                   : 'Try a different search or filter'}
               </Text>
             </View>
@@ -564,6 +633,34 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sectionTabs: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: 4,
+    gap: 4,
+    marginBottom: 12,
+  },
+  sectionTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+  },
+  sectionTabActive: {
+    backgroundColor: colors.accent,
+  },
+  sectionTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  sectionTabTextActive: {
+    color: colors.white,
   },
   searchRow: {
     flexDirection: 'row',
