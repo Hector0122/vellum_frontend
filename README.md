@@ -4,6 +4,8 @@
 
 App móvil de lectura enfocada en libros, notas y lectura sin distracciones.
 
+> **Fuera de producción desde 2026-10-20.** El backend ya no está desplegado; el código se conserva. Ver [vellum_backend/DEPLOYMENT.md](https://github.com/Hector0122/vellum_backend/blob/main/DEPLOYMENT.md).
+
 <table align="center">
   <tr>
     <td align="center">

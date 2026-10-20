@@ -95,6 +95,9 @@ android {
             abiFilters "arm64-v8a", "x86_64"
         }
     }
+    // TODO: storePassword/keyPassword de "release" están en texto plano y el repo
+    // es público. No explotable sin vellum-release.keystore (gitignored, nunca se
+    // sube), pero deberían moverse a gradle.properties gitignoreado o una env var.
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
